@@ -1,5 +1,6 @@
 package com.skillswap.controller;
 
+import com.skillswap.dto.RegisterRequest;
 import com.skillswap.entity.User;
 import com.skillswap.service.UserService;
 import jakarta.validation.Valid;
@@ -16,7 +17,7 @@ public class UserController {
     }
 
     @PostMapping("/register")
-    public User registerUser(@Valid @RequestBody User user){
-        return userService.saveUser(user);
+    public User registerUser(@Valid @RequestBody RegisterRequest request){
+        return userService.saveUser(request);
     }
 }
