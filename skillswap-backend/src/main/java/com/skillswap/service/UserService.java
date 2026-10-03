@@ -3,6 +3,7 @@ package com.skillswap.service;
 import com.skillswap.dto.RegisterRequest;
 import com.skillswap.entity.User;
 import com.skillswap.enums.Role;
+import com.skillswap.exception.EmailAlreadyExistsException;
 import com.skillswap.repository.UserRepository;
 import org.springframework.stereotype.Service;
 
@@ -16,6 +17,10 @@ public class UserService {
     }
 
     public User saveUser(RegisterRequest request) {
+
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new EmailAlreadyExistsException("Email already registered");
+        }
 
         User user = new User();
 
