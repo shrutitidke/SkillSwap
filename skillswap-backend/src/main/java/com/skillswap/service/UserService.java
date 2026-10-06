@@ -5,15 +5,19 @@ import com.skillswap.entity.User;
 import com.skillswap.enums.Role;
 import com.skillswap.exception.EmailAlreadyExistsException;
 import com.skillswap.repository.UserRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 @Service
 public class UserService {
 
-    final UserRepository userRepository;
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public UserService(UserRepository userRepository) {
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder)
+    {
         this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public User saveUser(RegisterRequest request) {
@@ -26,7 +30,7 @@ public class UserService {
 
         user.setName(request.getName());
         user.setEmail(request.getEmail());
-        user.setPassword(request.getPassword());
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
 
         user.setRole(Role.USER);
 
