@@ -1,9 +1,14 @@
 package com.skillswap.controller;
 
+import com.skillswap.dto.LoginRequest;
+import com.skillswap.dto.LoginResponse;
+import com.skillswap.dto.MessageResponse;
 import com.skillswap.dto.RegisterRequest;
 import com.skillswap.entity.User;
 import com.skillswap.service.UserService;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -17,7 +22,22 @@ public class UserController {
     }
 
     @PostMapping("/register")
-    public User registerUser(@Valid @RequestBody RegisterRequest request){
-        return userService.saveUser(request);
+    public ResponseEntity<MessageResponse> registerUser(
+            @Valid @RequestBody RegisterRequest request) {
+
+        userService.saveUser(request);
+
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(new MessageResponse("User registered successfully"));
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<LoginResponse> loginUser(
+            @Valid @RequestBody LoginRequest request) {
+
+        LoginResponse response = userService.loginUser(request);
+
+        return ResponseEntity.ok(response);
     }
 }
