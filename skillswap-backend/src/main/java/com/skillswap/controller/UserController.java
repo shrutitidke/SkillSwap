@@ -9,6 +9,7 @@ import com.skillswap.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -39,5 +40,16 @@ public class UserController {
         LoginResponse response = userService.loginUser(request);
 
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<MessageResponse> getCurrentUser(
+            Authentication authentication) {
+
+        return ResponseEntity.ok(
+                new MessageResponse(
+                        "Authenticated as: " + authentication.getName()
+                )
+        );
     }
 }

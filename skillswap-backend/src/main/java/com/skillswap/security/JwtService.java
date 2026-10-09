@@ -27,4 +27,23 @@ public class JwtService {
                 .signWith(getSigningKey())
                 .compact();
     }
+
+
+    public String extractEmail(String token) {
+
+        return Jwts.parser()
+                .verifyWith(getSigningKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload()
+                .getSubject();
+    }
+
+
+    public boolean validateToken(String token, String email) {
+
+        String tokenEmail = extractEmail(token);
+
+        return tokenEmail.equals(email);
+    }
 }
