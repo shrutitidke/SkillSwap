@@ -27,15 +27,20 @@ public class SecurityConfig {
                         .authenticationEntryPoint((request, response, authException) ->
                                 response.sendError(HttpServletResponse.SC_UNAUTHORIZED)
                         )
+                        .accessDeniedHandler((request, response, accessDeniedException) ->
+                                response.sendError(HttpServletResponse.SC_FORBIDDEN)
+                        )
                 );
 
         http.authorizeHttpRequests(auth -> auth
                 .requestMatchers(
                         "/swagger-ui/**",
                         "/v3/api-docs/**",
+                        "/error",
                         "/api/users/register",
                         "/api/users/login"
                 ).permitAll()
+                .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
         );
 
