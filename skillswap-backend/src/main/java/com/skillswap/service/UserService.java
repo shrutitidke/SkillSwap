@@ -3,6 +3,7 @@ package com.skillswap.service;
 import com.skillswap.dto.LoginRequest;
 import com.skillswap.dto.LoginResponse;
 import com.skillswap.dto.RegisterRequest;
+import com.skillswap.dto.UserResponse;
 import com.skillswap.entity.User;
 import com.skillswap.enums.Role;
 import com.skillswap.exception.EmailAlreadyExistsException;
@@ -10,6 +11,8 @@ import com.skillswap.repository.UserRepository;
 import com.skillswap.security.JwtService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 public class UserService {
@@ -54,5 +57,19 @@ public class UserService {
         String token = jwtService.generateToken(user.getEmail());
 
         return new LoginResponse(token);
+    }
+
+    public List<UserResponse> getAllUsers() {
+
+        return userRepository.findAll()
+                .stream()
+                .map(user -> new UserResponse(
+                        user.getId(),
+                        user.getName(),
+                        user.getEmail(),
+                        user.getRole(),
+                        user.getCreatedAt()
+                ))
+                .toList();
     }
 }
