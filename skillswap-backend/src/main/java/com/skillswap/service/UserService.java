@@ -1,9 +1,6 @@
 package com.skillswap.service;
 
-import com.skillswap.dto.LoginRequest;
-import com.skillswap.dto.LoginResponse;
-import com.skillswap.dto.RegisterRequest;
-import com.skillswap.dto.UserResponse;
+import com.skillswap.dto.*;
 import com.skillswap.entity.User;
 import com.skillswap.enums.Role;
 import com.skillswap.exception.EmailAlreadyExistsException;
@@ -71,5 +68,33 @@ public class UserService {
                         user.getCreatedAt()
                 ))
                 .toList();
+    }
+
+    public UserResponse updateProfile(
+            String currentEmail,
+            UpdateProfileRequest request) {
+
+        User user = userRepository.findByEmail(currentEmail)
+                .orElseThrow(() ->
+                        new RuntimeException("User not found"));
+
+        if (!user.getEmail().equalsIgnoreCase(request.email())
+                && userRepository.existsByEmail(request.email())) {
+            throw new EmailAlreadyExistsException(
+                    "Email already registered");
+        }
+
+        user.setName(request.name());
+        user.setEmail(request.email());
+
+        User updatedUser = userRepository.save(user);
+
+        return new UserResponse(
+                updatedUser.getId(),
+                updatedUser.getName(),
+                updatedUser.getEmail(),
+                updatedUser.getRole(),
+                updatedUser.getCreatedAt()
+        );
     }
 }

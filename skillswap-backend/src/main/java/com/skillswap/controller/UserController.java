@@ -1,9 +1,6 @@
 package com.skillswap.controller;
 
-import com.skillswap.dto.LoginRequest;
-import com.skillswap.dto.LoginResponse;
-import com.skillswap.dto.MessageResponse;
-import com.skillswap.dto.RegisterRequest;
+import com.skillswap.dto.*;
 import com.skillswap.entity.User;
 import com.skillswap.service.UserService;
 import jakarta.validation.Valid;
@@ -51,6 +48,19 @@ public class UserController {
                         "Authenticated as: " + authentication.getName()
                 )
         );
+    }
+
+    @PutMapping("/me")
+    public ResponseEntity<UserResponse> updateProfile(
+            @Valid @RequestBody UpdateProfileRequest request,
+            Authentication authentication) {
+
+        String currentEmail = authentication.getName();
+
+        UserResponse updatedUser =
+                userService.updateProfile(currentEmail, request);
+
+        return ResponseEntity.ok(updatedUser);
     }
 
 }

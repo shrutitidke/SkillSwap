@@ -38,7 +38,10 @@ public class SecurityConfig {
                         "/v3/api-docs/**",
                         "/error",
                         "/api/users/register",
-                        "/api/users/login"
+                        "/api/users/login",
+                        "/api/users/forgot-password",
+                        "/api/users/verify-reset-otp",
+                        "/api/users/reset-password"
                 ).permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
