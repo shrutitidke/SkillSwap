@@ -14,4 +14,16 @@ public class GlobalExceptionHandler {
     public ErrorResponse handleEmailAlreadyExists(EmailAlreadyExistsException ex) {
         return new ErrorResponse(409, ex.getMessage());
     }
+
+    @ExceptionHandler(UserNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ErrorResponse handleUserNotFound(UserNotFoundException ex) {
+        return new ErrorResponse(404, ex.getMessage());
+    }
+
+    @ExceptionHandler(SkillNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ErrorResponse handleSkillNotFound(SkillNotFoundException ex) {
+        return new ErrorResponse(404, ex.getMessage());
+    }
 }
