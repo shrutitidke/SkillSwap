@@ -1,5 +1,6 @@
 package com.skillswap.controller;
 
+import com.skillswap.dto.SkillDiscoveryResponse;
 import com.skillswap.dto.SkillRequest;
 import com.skillswap.dto.SkillResponse;
 import com.skillswap.service.SkillService;
@@ -63,4 +64,15 @@ public class SkillController {
 
         return ResponseEntity.ok("Skill deleted successfully");
     }
+
+    @GetMapping("/discover")
+    public ResponseEntity<List<SkillDiscoveryResponse>> discoverSkills(
+            Authentication authentication) {
+
+        List<SkillDiscoveryResponse> skills =
+                skillService.discoverSkills(authentication);
+
+        return ResponseEntity.ok(skills);
+    }
+
 }

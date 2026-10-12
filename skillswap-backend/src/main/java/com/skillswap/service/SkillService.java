@@ -12,6 +12,9 @@ import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
+import com.skillswap.enums.Role;
+import com.skillswap.enums.SkillType;
+import com.skillswap.dto.SkillDiscoveryResponse;
 
 @Service
 public class SkillService {
@@ -134,6 +137,36 @@ public class SkillService {
                 .orElseThrow(() -> new SkillNotFoundException("Skill not found"));
 
         skillRepository.delete(skill);
+    }
+
+
+    public List<SkillDiscoveryResponse> discoverSkills(
+            Authentication authentication) {
+
+        String email = authentication.getName();
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new UserNotFoundException("User not found"));
+
+        List<Skill> skills = skillRepository.findDiscoverableSkills(
+                SkillType.TEACH,
+                user.getId(),
+                Role.ADMIN
+        );
+
+        return skills.stream()
+                .map(skill -> new SkillDiscoveryResponse(
+                        skill.getId(),
+                        skill.getName(),
+                        skill.getDescription(),
+                        skill.getType(),
+                        skill.getUser().getId(),
+                        skill.getUser().getName(),
+                        skill.getCreatedAt(),
+                        skill.getUpdatedAt()
+                ))
+                .toList();
     }
 
 
