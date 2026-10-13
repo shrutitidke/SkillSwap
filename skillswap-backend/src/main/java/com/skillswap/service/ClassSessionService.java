@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import com.skillswap.dto.ClassSessionDecisionDTO;
 import org.springframework.transaction.annotation.Transactional;
+import com.skillswap.repository.ClassSessionRepository;
 
 import java.util.List;
 
@@ -36,6 +37,7 @@ public class ClassSessionService {
         this.requestRepository = requestRepository;
         this.userRepository = userRepository;
     }
+
 
     @Transactional
     public ClassSessionResponseDTO proposeSession(
@@ -170,6 +172,46 @@ public class ClassSessionService {
         return toResponseDTO(saved);
     }
 
+    @Transactional
+    public ClassSessionResponseDTO cancelSession(
+            Long sessionId,
+            Authentication authentication) {
+
+        User currentUser = userRepository.findByEmail(authentication.getName())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "User not found"));
+
+        ClassSession session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Session not found"));
+
+        SkillExchangeRequest request = session.getSkillExchangeRequest();
+
+        boolean isTeacher = request.getTeacher().getId()
+                .equals(currentUser.getId());
+
+        boolean isLearner = request.getLearner().getId()
+                .equals(currentUser.getId());
+
+        if (!isTeacher && !isLearner) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "You are not allowed to cancel this session");
+        }
+
+        if (session.getStatus() == SessionStatus.CANCELLED
+                || session.getStatus() == SessionStatus.COMPLETED) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "This session cannot be cancelled");
+        }
+
+        session.setStatus(SessionStatus.CANCELLED);
+
+        ClassSession savedSession = sessionRepository.save(session);
+
+        return toResponseDTO(savedSession);
+    }
 
 
 }
