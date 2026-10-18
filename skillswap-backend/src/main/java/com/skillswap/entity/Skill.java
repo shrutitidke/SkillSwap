@@ -1,4 +1,3 @@
-
 package com.skillswap.entity;
 
 import com.skillswap.enums.SkillType;

@@ -19,6 +19,8 @@ import org.springframework.web.server.ResponseStatusException;
 import com.skillswap.dto.ClassSessionDecisionDTO;
 import org.springframework.transaction.annotation.Transactional;
 import com.skillswap.repository.ClassSessionRepository;
+import com.skillswap.enums.NotificationType;
+import com.skillswap.service.NotificationService;
 
 import java.util.List;
 
@@ -28,14 +30,18 @@ public class ClassSessionService {
     private final ClassSessionRepository sessionRepository;
     private final SkillExchangeRequestRepository requestRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     public ClassSessionService(
             ClassSessionRepository sessionRepository,
             SkillExchangeRequestRepository requestRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            NotificationService notificationService) {
+
         this.sessionRepository = sessionRepository;
         this.requestRepository = requestRepository;
         this.userRepository = userRepository;
+        this.notificationService = notificationService;
     }
 
 
@@ -79,6 +85,14 @@ public class ClassSessionService {
         session.setStatus(SessionStatus.PROPOSED);
 
         ClassSession saved = sessionRepository.save(session);
+
+        notificationService.createNotification(
+                request.getLearner(),
+                NotificationType.SESSION_PROPOSED,
+                teacher.getName()
+                        + " proposed a class for "
+                        + request.getSkill().getName()
+        );
 
         return toResponseDTO(saved);
     }
@@ -169,6 +183,27 @@ public class ClassSessionService {
 
         ClassSession saved = sessionRepository.save(session);
 
+        NotificationType notificationType;
+        String notificationMessage;
+
+        if (newStatus == SessionStatus.CONFIRMED) {
+            notificationType = NotificationType.SESSION_CONFIRMED;
+            notificationMessage = learner.getName()
+                    + " confirmed the class for "
+                    + request.getSkill().getName();
+        } else {
+            notificationType = NotificationType.SESSION_DECLINED;
+            notificationMessage = learner.getName()
+                    + " declined the class for "
+                    + request.getSkill().getName();
+        }
+
+        notificationService.createNotification(
+                request.getTeacher(),
+                notificationType,
+                notificationMessage
+        );
+
         return toResponseDTO(saved);
     }
 
@@ -209,6 +244,18 @@ public class ClassSessionService {
         session.setStatus(SessionStatus.CANCELLED);
 
         ClassSession savedSession = sessionRepository.save(session);
+
+        User otherParticipant = isTeacher
+                ? request.getLearner()
+                : request.getTeacher();
+
+        notificationService.createNotification(
+                otherParticipant,
+                NotificationType.SESSION_CANCELLED,
+                currentUser.getName()
+                        + " cancelled the class for "
+                        + request.getSkill().getName()
+        );
 
         return toResponseDTO(savedSession);
     }

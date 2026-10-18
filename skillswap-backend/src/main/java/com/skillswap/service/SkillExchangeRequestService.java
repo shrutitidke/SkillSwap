@@ -5,6 +5,7 @@ import com.skillswap.dto.SkillExchangeRequestResponseDTO;
 import com.skillswap.entity.Skill;
 import com.skillswap.entity.SkillExchangeRequest;
 import com.skillswap.entity.User;
+import com.skillswap.enums.NotificationType;
 import com.skillswap.enums.RequestStatus;
 import com.skillswap.enums.SkillType;
 import com.skillswap.exception.SkillNotFoundException;
@@ -25,14 +26,18 @@ public class SkillExchangeRequestService {
     private final SkillExchangeRequestRepository requestRepository;
     private final SkillRepository skillRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     public SkillExchangeRequestService(
             SkillExchangeRequestRepository requestRepository,
             SkillRepository skillRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            NotificationService notificationService) {
+
         this.requestRepository = requestRepository;
         this.skillRepository = skillRepository;
         this.userRepository = userRepository;
+        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -78,8 +83,15 @@ public class SkillExchangeRequestService {
         SkillExchangeRequest savedRequest =
                 requestRepository.save(skillRequest);
 
+        notificationService.createNotification(
+                savedRequest.getTeacher(),
+                NotificationType.SKILL_REQUEST_RECEIVED,
+                learner.getName() + " has requested to learn "
+                        + skill.getName()
+        );
 
         return new SkillExchangeRequestResponseDTO(
+                savedRequest.getId(),
                 learner.getName(),
                 skill.getUser().getName(),
                 savedRequest.getMessage(),
@@ -105,6 +117,7 @@ public class SkillExchangeRequestService {
 
         return requests.stream()
                 .map(request -> new SkillExchangeRequestResponseDTO(
+                        request.getId(),
                         request.getLearner().getName(),
                         request.getTeacher().getName(),
                         request.getMessage(),
@@ -156,7 +169,29 @@ public class SkillExchangeRequestService {
         SkillExchangeRequest savedRequest =
                 requestRepository.save(request);
 
+        NotificationType notificationType;
+        String notificationMessage;
+
+        if (newStatus == RequestStatus.ACCEPTED) {
+            notificationType = NotificationType.SKILL_REQUEST_ACCEPTED;
+            notificationMessage = teacher.getName()
+                    + " accepted your request to learn "
+                    + savedRequest.getSkill().getName();
+        } else {
+            notificationType = NotificationType.SKILL_REQUEST_REJECTED;
+            notificationMessage = teacher.getName()
+                    + " rejected your request to learn "
+                    + savedRequest.getSkill().getName();
+        }
+
+        notificationService.createNotification(
+                savedRequest.getLearner(),
+                notificationType,
+                notificationMessage
+        );
+
         return new SkillExchangeRequestResponseDTO(
+                savedRequest.getId(),
                 savedRequest.getLearner().getName(),
                 savedRequest.getTeacher().getName(),
                 savedRequest.getMessage(),

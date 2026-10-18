@@ -1,0 +1,11 @@
+package com.skillswap.enums;
+
+public enum NotificationType {
+    SKILL_REQUEST_RECEIVED,
+    SKILL_REQUEST_ACCEPTED,
+    SKILL_REQUEST_REJECTED,
+    SESSION_PROPOSED,
+    SESSION_CONFIRMED,
+    SESSION_DECLINED,
+    SESSION_CANCELLED
+}
