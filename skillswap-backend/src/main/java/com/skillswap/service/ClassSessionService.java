@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.skillswap.repository.ClassSessionRepository;
 import com.skillswap.enums.NotificationType;
 import com.skillswap.service.NotificationService;
+import java.time.LocalDateTime;
 
 import java.util.List;
 
@@ -239,6 +240,12 @@ public class ClassSessionService {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
                     "This session cannot be cancelled");
+        }
+
+        if (session.getScheduledAt().isBefore(LocalDateTime.now())) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Past sessions cannot be cancelled");
         }
 
         session.setStatus(SessionStatus.CANCELLED);
