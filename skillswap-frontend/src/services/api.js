@@ -233,3 +233,24 @@ export function cancelClassSession(sessionId) {
     method: 'PUT',
   })
 }
+
+export async function getSessionReviews(sessionId) {
+  const data = await apiRequest(`/class-sessions/${sessionId}/reviews`)
+  if (!Array.isArray(data)) {
+    throw new Error('The session reviews API did not return a list.')
+  }
+  return data
+}
+
+export function createSessionReview(sessionId, review) {
+  return apiRequest(`/class-sessions/${sessionId}/reviews`, {
+    method: 'POST',
+    body: JSON.stringify(review),
+  })
+}
+
+export function getPublicUserProfile(userId) {
+  return apiRequest(`/public/users/${userId}/profile`, {
+    authenticated: false,
+  })
+}

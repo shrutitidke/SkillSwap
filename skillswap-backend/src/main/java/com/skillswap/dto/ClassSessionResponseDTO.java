@@ -12,6 +12,8 @@ public class ClassSessionResponseDTO {
 
     private Long id;
     private Long requestId;
+    private Long learnerId;
+    private Long teacherId;
     private Long proposerId;
     private String proposerName;
     private String teachingSkillName;

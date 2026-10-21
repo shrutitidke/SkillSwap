@@ -22,6 +22,7 @@ import MySkills from './pages/MySkills'
 import MyRequests from './pages/MyRequests'
 import Dashboard from './pages/Dashboard'
 import ExchangeChat from './pages/ExchangeChat'
+import PublicProfile from './pages/PublicProfile'
 import Terms from './pages/Terms'
 
 function AppContent() {
@@ -135,6 +136,7 @@ function AppContent() {
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/terms" element={<Terms />} />
+          <Route path="/users/:userId/profile" element={<PublicProfile />} />
         </Routes>
       </main>
 

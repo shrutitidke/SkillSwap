@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   createSkill,
   deleteSkill,
@@ -21,6 +22,8 @@ function MySkills() {
   const [deletingId, setDeletingId] = useState(null)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const teachCount = skills.filter((skill) => skill.type === 'TEACH').length
+  const learnCount = skills.filter((skill) => skill.type === 'LEARN').length
 
   const loadSkills = async () => {
     setLoading(true)
@@ -145,159 +148,202 @@ function MySkills() {
   return (
     <section className="my-skills-page">
       <header className="my-skills-header">
-        <p className="eyebrow">YOUR SKILL PROFILE</p>
-        <h1>My <span>Skills</span></h1>
-        <p>Add what you can teach and what you would like to learn.</p>
+        <div>
+          <p className="eyebrow">YOUR SKILL PROFILE</p>
+          <h1>My <span>Skills</span></h1>
+          <p>Share what you know and discover what you can learn next.</p>
+        </div>
+        <Link to="/skills" className="my-skills-discover-link">
+          Find a skill match <span aria-hidden="true">→</span>
+        </Link>
       </header>
 
-      <section className="my-skills-form-card" aria-labelledby="skill-form-title">
-        <h2 id="skill-form-title">
-          {editingId === null ? 'Add a skill' : 'Edit skill'}
-        </h2>
+      <div className="my-skills-summary" aria-label="Skill totals">
+        <article className="my-skills-summary-card teach">
+          <span className="my-skills-summary-icon" aria-hidden="true">↗</span>
+          <div>
+            <strong>{loading ? '—' : teachCount}</strong>
+            <span>{teachCount === 1 ? 'Skill to teach' : 'Skills to teach'}</span>
+          </div>
+        </article>
+        <article className="my-skills-summary-card learn">
+          <span className="my-skills-summary-icon" aria-hidden="true">✦</span>
+          <div>
+            <strong>{loading ? '—' : learnCount}</strong>
+            <span>{learnCount === 1 ? 'Skill to learn' : 'Skills to learn'}</span>
+          </div>
+        </article>
+      </div>
 
-        {error && (
-          <p className="my-skills-message error" role="alert">
-            {error}
-          </p>
-        )}
-        {notice && (
-          <p className="my-skills-message success" role="status">
-            {notice}
-          </p>
-        )}
+      {error && (
+        <p className="my-skills-message error" role="alert">
+          {error}
+        </p>
+      )}
+      {notice && (
+        <p className="my-skills-message success" role="status">
+          {notice}
+        </p>
+      )}
 
-        <form className="skill-editor" onSubmit={handleSubmit}>
-          <div className="skill-editor-field">
-            <label htmlFor="skill-name">Skill name</label>
-            <input
-              id="skill-name"
-              name="name"
-              type="text"
-              value={form.name}
-              onChange={handleFieldChange}
-              placeholder="For example, JavaScript"
-              maxLength={100}
-              required
-            />
+      <div className="my-skills-workspace">
+        <section className="my-skills-form-card" aria-labelledby="skill-form-title">
+          <div className="my-skills-form-heading">
+            <span className="my-skills-form-icon" aria-hidden="true">
+              {editingId === null ? '+' : '✎'}
+            </span>
+            <div>
+              <p className="eyebrow">{editingId === null ? 'GROW YOUR PROFILE' : 'UPDATE YOUR PROFILE'}</p>
+              <h2 id="skill-form-title">
+                {editingId === null ? 'Add a skill' : 'Edit skill'}
+              </h2>
+            </div>
           </div>
 
-          <div className="skill-editor-field">
-            <label htmlFor="skill-type">I want to</label>
-            <select
-              id="skill-type"
-              name="type"
-              value={form.type}
-              onChange={handleFieldChange}
-              required
-            >
-              <option value="TEACH">Teach this skill</option>
-              <option value="LEARN">Learn this skill</option>
-            </select>
+          <form className="skill-editor" onSubmit={handleSubmit}>
+            <div className="skill-editor-field">
+              <label htmlFor="skill-name">Skill name</label>
+              <input
+                id="skill-name"
+                name="name"
+                type="text"
+                value={form.name}
+                onChange={handleFieldChange}
+                placeholder="For example, JavaScript"
+                maxLength={100}
+                required
+              />
+            </div>
+
+            <div className="skill-editor-field">
+              <label htmlFor="skill-type">I want to</label>
+              <select
+                id="skill-type"
+                name="type"
+                value={form.type}
+                onChange={handleFieldChange}
+                required
+              >
+                <option value="TEACH">Teach this skill</option>
+                <option value="LEARN">Learn this skill</option>
+              </select>
+            </div>
+
+            <div className="skill-editor-field">
+              <label htmlFor="skill-description">Description (optional)</label>
+              <textarea
+                id="skill-description"
+                name="description"
+                value={form.description}
+                onChange={handleFieldChange}
+                placeholder="Add a little detail about your experience or goals."
+                maxLength={1000}
+                rows={3}
+              />
+            </div>
+
+            <div className="skill-editor-actions">
+              <button
+                type="submit"
+                className="primary-btn"
+                disabled={saving}
+              >
+                {saving
+                  ? 'Saving...'
+                  : editingId === null
+                    ? 'Add skill'
+                    : 'Save changes'}
+              </button>
+              {editingId !== null && (
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  onClick={clearForm}
+                  disabled={saving}
+                >
+                  Cancel edit
+                </button>
+              )}
+            </div>
+          </form>
+        </section>
+
+        <section className="my-skills-list" aria-labelledby="my-skills-list-title">
+          <div className="my-skills-list-heading">
+            <div>
+              <p className="eyebrow">YOUR COLLECTION</p>
+              <h2 id="my-skills-list-title">Saved skills</h2>
+            </div>
+            {!loading && (
+              <span className="my-skills-total">
+                {skills.length} {skills.length === 1 ? 'skill' : 'skills'}
+              </span>
+            )}
           </div>
 
-          <div className="skill-editor-field">
-            <label htmlFor="skill-description">Description (optional)</label>
-            <textarea
-              id="skill-description"
-              name="description"
-              value={form.description}
-              onChange={handleFieldChange}
-              placeholder="Add a little detail about your experience or goals."
-              maxLength={1000}
-              rows={3}
-            />
-          </div>
-
-          <div className="skill-editor-actions">
-            <button
-              type="submit"
-              className="primary-btn"
-              disabled={saving}
-            >
-              {saving
-                ? 'Saving...'
-                : editingId === null
-                  ? 'Add skill'
-                  : 'Save changes'}
-            </button>
-            {editingId !== null && (
+          {loading ? (
+            <p className="my-skills-state" role="status">Loading your skills...</p>
+          ) : error && skills.length === 0 ? (
+            <div className="my-skills-state">
+              <p>We couldn’t load your skills.</p>
               <button
                 type="button"
                 className="secondary-btn"
-                onClick={clearForm}
-                disabled={saving}
+                onClick={loadSkills}
               >
-                Cancel edit
+                Try again
               </button>
-            )}
-          </div>
-        </form>
-      </section>
+            </div>
+          ) : skills.length === 0 ? (
+            <div className="my-skills-state">
+              <h3>No skills added yet</h3>
+              <p>Add a TEACH or LEARN skill above to get started.</p>
+            </div>
+          ) : (
+            <div className="my-skills-grid">
+              {skills.map((skill) => (
+                <article
+                  className={`my-skill-card ${skill.type === 'TEACH' ? 'teach' : 'learn'}`}
+                  key={skill.id}
+                >
+                  <div className="skill-card-top">
+                    <div className="my-skill-card-icon" aria-hidden="true">
+                      {skill.type === 'TEACH' ? '↗' : '✦'}
+                    </div>
+                    <span className="my-skill-type">
+                      {skill.type === 'TEACH' ? 'TEACH' : 'LEARN'}
+                    </span>
+                  </div>
 
-      <section className="my-skills-list" aria-labelledby="my-skills-list-title">
-        <div className="my-skills-list-heading">
-          <h2 id="my-skills-list-title">Your saved skills</h2>
-          {!loading && <span>{skills.length}</span>}
-        </div>
+                  <h3>{skill.name}</h3>
+                  <p className="my-skill-description">
+                    {skill.description || 'No description added.'}
+                  </p>
 
-        {loading ? (
-          <p className="my-skills-state" role="status">Loading your skills...</p>
-        ) : error && skills.length === 0 ? (
-          <div className="my-skills-state">
-            <p>We couldn’t load your skills.</p>
-            <button
-              type="button"
-              className="secondary-btn"
-              onClick={loadSkills}
-            >
-              Try again
-            </button>
-          </div>
-        ) : skills.length === 0 ? (
-          <div className="my-skills-state">
-            <h3>No skills added yet</h3>
-            <p>Add a TEACH or LEARN skill above to get started.</p>
-          </div>
-        ) : (
-          <div className="skills-grid">
-            {skills.map((skill) => (
-              <article className="skill-card my-skill-card" key={skill.id}>
-                <div className="skill-card-top">
-                  <div className="skill-icon" aria-hidden="true">✦</div>
-                  <span className="skill-level">
-                    {skill.type === 'TEACH' ? 'I can teach' : 'I want to learn'}
-                  </span>
-                </div>
-
-                <p className="skill-category">{skill.type}</p>
-                <h3>{skill.name}</h3>
-                <p className="skill-description">
-                  {skill.description || 'No description added.'}
-                </p>
-
-                <div className="skill-editor-actions">
-                  <button
-                    type="button"
-                    className="secondary-btn"
-                    onClick={() => handleEdit(skill)}
-                    disabled={deletingId !== null || saving}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    className="skill-delete-button"
-                    onClick={() => handleDelete(skill)}
-                    disabled={deletingId !== null || saving}
-                  >
-                    {deletingId === skill.id ? 'Deleting...' : 'Delete'}
-                  </button>
-                </div>
-              </article>
-            ))}
-          </div>
-        )}
-      </section>
+                  <div className="my-skill-actions">
+                    <button
+                      type="button"
+                      className="secondary-btn"
+                      onClick={() => handleEdit(skill)}
+                      disabled={deletingId !== null || saving}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      className="skill-delete-button"
+                      onClick={() => handleDelete(skill)}
+                      disabled={deletingId !== null || saving}
+                    >
+                      {deletingId === skill.id ? 'Deleting...' : 'Delete'}
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
     </section>
   )
 }

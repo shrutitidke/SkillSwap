@@ -120,6 +120,8 @@ public class ClassSessionService {
         return new ClassSessionResponseDTO(
                 session.getId(),
                 request.getId(),
+                request.getLearner().getId(),
+                request.getTeacher().getId(),
                 proposer.getId(),
                 proposer.getName(),
                 teachingSkillName(session, request),

@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import useAuth from '../auth/useAuth'
 import {
   cancelClassSession,
+  createSessionReview,
+  getSessionReviews,
   getMyClassSessions,
   getReceivedExchangeRequests,
   getSentExchangeRequests,
@@ -34,6 +36,140 @@ function getSafeMeetingUrl(value) {
   } catch {
     return null
   }
+}
+
+function SessionReviewPanel({ session, currentUserId }) {
+  const [reviews, setReviews] = useState(null)
+  const [rating, setRating] = useState('5')
+  const [comment, setComment] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const currentId = String(currentUserId)
+  const revieweeId =
+    String(session.teacherId) === currentId
+      ? session.learnerId
+      : session.teacherId
+  const revieweeName =
+    String(session.teacherId) === currentId
+      ? session.learnerName
+      : session.teacherName
+
+  const fetchReviews = useCallback(
+    () => getSessionReviews(session.id),
+    [session.id]
+  )
+
+  useEffect(() => {
+    let active = true
+
+    fetchReviews()
+      .then((data) => {
+        if (active) setReviews(data)
+      })
+      .catch((loadError) => {
+        if (active) {
+          setError(loadError.message || 'Unable to load session reviews.')
+        }
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [fetchReviews])
+
+  const ownReview = reviews?.find(
+    (review) => String(review.reviewerId) === currentId
+  )
+
+  const handleSubmit = async (event) => {
+    event.preventDefault()
+    setSaving(true)
+    setError('')
+    try {
+      const savedReview = await createSessionReview(session.id, {
+        rating: Number(rating),
+        comment: comment.trim(),
+      })
+      setReviews((current) => [...(current || []), savedReview])
+      setComment('')
+    } catch (saveError) {
+      setError(saveError.message || 'Unable to submit your review.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleRetry = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      setReviews(await fetchReviews())
+    } catch (loadError) {
+      setError(loadError.message || 'Unable to load session reviews.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <section className="session-review-panel">
+      <h5>Review this session</h5>
+      <p>
+        <Link to={`/users/${revieweeId}/profile`}>
+          View {revieweeName}&apos;s public profile
+        </Link>
+      </p>
+      {error && <p className="request-error" role="alert">{error}</p>}
+      {loading ? (
+        <p role="status">Loading reviews...</p>
+      ) : reviews === null ? (
+        <button
+          type="button"
+          className="secondary-btn"
+          onClick={handleRetry}
+        >
+          Retry loading reviews
+        </button>
+      ) : ownReview ? (
+        <p className="session-review-submitted" role="status">
+          You rated {revieweeName} {ownReview.rating} out of 5.
+          {ownReview.comment && ` Your comment: “${ownReview.comment}”`}
+        </p>
+      ) : (
+        <form className="session-review-form" onSubmit={handleSubmit}>
+          <label>
+            Rating
+            <select
+              value={rating}
+              onChange={(event) => setRating(event.target.value)}
+            >
+              {[5, 4, 3, 2, 1].map((value) => (
+                <option value={value} key={value}>
+                  {value} {value === 1 ? 'star' : 'stars'}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Comment (optional)
+            <textarea
+              value={comment}
+              onChange={(event) => setComment(event.target.value)}
+              maxLength={1000}
+              rows={3}
+            />
+          </label>
+          <button type="submit" className="primary-btn" disabled={saving}>
+            {saving ? 'Submitting...' : 'Submit review'}
+          </button>
+        </form>
+      )}
+    </section>
+  )
 }
 
 function SessionPanel({
@@ -84,8 +220,14 @@ function SessionPanel({
             const isBusy = actionId === `session-${session.id}`
             const canCancel = ['PROPOSED', 'CONFIRMED'].includes(session.status)
             const sessionStartTime = new Date(session.scheduledAt).getTime()
+            const sessionEndTime =
+              sessionStartTime + session.durationMinutes * 60_000
             const isFutureSession =
               Number.isFinite(sessionStartTime) && sessionStartTime > currentTime
+            const canReview =
+              session.status === 'CONFIRMED' &&
+              Number.isFinite(sessionEndTime) &&
+              sessionEndTime <= currentTime
             const safeMeetingUrl = session.meetingLink
               ? getSafeMeetingUrl(session.meetingLink)
               : null
@@ -170,6 +312,12 @@ function SessionPanel({
                     </button>
                   )}
                 </div>
+                {canReview && (
+                  <SessionReviewPanel
+                    session={session}
+                    currentUserId={currentUserId}
+                  />
+                )}
               </article>
             )
           })}
@@ -383,15 +531,20 @@ function MyRequests() {
   }, [])
 
   useEffect(() => {
-    const nextSessionStart = sessions
+    const upcomingSessionTimes = sessions
       .filter((session) => ['PROPOSED', 'CONFIRMED'].includes(session.status))
-      .map((session) => new Date(session.scheduledAt).getTime())
+      .flatMap((session) => {
+        const start = new Date(session.scheduledAt).getTime()
+        const end = start + session.durationMinutes * 60_000
+        return session.status === 'CONFIRMED' ? [start, end] : [start]
+      })
       .filter((timestamp) => Number.isFinite(timestamp) && timestamp > currentTime)
-      .sort((first, second) => first - second)[0]
+      .sort((first, second) => first - second)
+    const nextSessionTime = upcomingSessionTimes[0]
 
-    if (nextSessionStart === undefined) return undefined
+    if (nextSessionTime === undefined) return undefined
 
-    const delay = Math.min(nextSessionStart - currentTime, 60_000)
+    const delay = Math.min(nextSessionTime - currentTime, 60_000)
     const timer = window.setTimeout(() => setCurrentTime(Date.now()), delay)
     return () => window.clearTimeout(timer)
   }, [sessions, currentTime])
