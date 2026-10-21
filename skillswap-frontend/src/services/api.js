@@ -186,6 +186,26 @@ export function respondToExchangeRequest(requestId, status) {
   })
 }
 
+export async function getExchangeChatMessages(requestId, afterId) {
+  const query = afterId == null ? '' : `?afterId=${encodeURIComponent(afterId)}`
+  const data = await apiRequest(
+    `/skill-requests/${requestId}/messages${query}`
+  )
+
+  if (!Array.isArray(data)) {
+    throw new Error('The exchange chat API did not return a message list.')
+  }
+
+  return data
+}
+
+export function sendExchangeChatMessage(requestId, content) {
+  return apiRequest(`/skill-requests/${requestId}/messages`, {
+    method: 'POST',
+    body: JSON.stringify({ content }),
+  })
+}
+
 export async function getMyClassSessions() {
   const data = await apiRequest('/class-sessions/my-sessions')
   if (!Array.isArray(data)) {

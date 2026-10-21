@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   getReceivedExchangeRequests,
   getSentExchangeRequests,
@@ -27,6 +28,14 @@ function RequestCard({ request, incoming, onRespond, respondingId }) {
         </p>
       )}
       {request.message && <p className="request-message">{request.message}</p>}
+      {request.status === 'ACCEPTED' && (
+        <Link
+          to={`/my-requests/${request.id}/chat`}
+          className="secondary-btn request-chat-link"
+        >
+          Open private chat
+        </Link>
+      )}
       {incoming && request.status === 'PENDING' && (
         <div className="request-actions">
           <button

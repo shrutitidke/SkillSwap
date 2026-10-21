@@ -21,6 +21,7 @@ import ForgotPassword from './pages/ForgotPassword'
 import MySkills from './pages/MySkills'
 import MyRequests from './pages/MyRequests'
 import Dashboard from './pages/Dashboard'
+import ExchangeChat from './pages/ExchangeChat'
 import Terms from './pages/Terms'
 
 function AppContent() {
@@ -125,6 +126,10 @@ function AppContent() {
             <Route path="/skills" element={<ExploreSkills />} />
             <Route path="/my-skills" element={<MySkills />} />
             <Route path="/my-requests" element={<MyRequests />} />
+            <Route
+              path="/my-requests/:requestId/chat"
+              element={<ExchangeChat />}
+            />
           </Route>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
