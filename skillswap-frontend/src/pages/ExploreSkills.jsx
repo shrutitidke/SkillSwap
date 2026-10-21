@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   getReciprocalMatches,
+  getReceivedExchangeRequests,
+  getSentExchangeRequests,
   sendExchangeRequest,
 } from '../services/api'
 
@@ -9,10 +11,12 @@ function ExploreSkills() {
   const [matches, setMatches] = useState([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
+  const [requestsLoading, setRequestsLoading] = useState(true)
   const [error, setError] = useState('')
   const [requestError, setRequestError] = useState('')
   const [sendingKey, setSendingKey] = useState('')
   const [sentRequests, setSentRequests] = useState({})
+  const [existingRequests, setExistingRequests] = useState([])
   const [requestNotice, setRequestNotice] = useState('')
 
   useEffect(() => {
@@ -23,10 +27,15 @@ function ExploreSkills() {
         setLoading(true)
         setError('')
 
-        const data = await getReciprocalMatches()
+        const [data, received, sent] = await Promise.all([
+          getReciprocalMatches(),
+          getReceivedExchangeRequests(),
+          getSentExchangeRequests(),
+        ])
 
         if (!cancelled) {
           setMatches(data)
+          setExistingRequests([...received, ...sent])
         }
       } catch (err) {
         if (!cancelled) {
@@ -35,6 +44,7 @@ function ExploreSkills() {
       } finally {
         if (!cancelled) {
           setLoading(false)
+          setRequestsLoading(false)
         }
       }
     }
@@ -69,7 +79,15 @@ function ExploreSkills() {
         skillId: match.skillTheyTeachId,
         learnerSkillId: match.skillYouTeachId,
       })
-      setSentRequests((current) => ({ ...current, [requestKey]: true }))
+      setSentRequests((current) => ({ ...current, [requestKey]: 'PENDING' }))
+      setExistingRequests((current) => [
+        ...current,
+        {
+          status: 'PENDING',
+          teacherSkillId: match.skillTheyTeachId,
+          learnerSkillId: match.skillYouTeachId,
+        },
+      ])
       setRequestNotice(`Request sent to ${match.userName}.`)
     } catch (requestError) {
       setRequestError(
@@ -150,10 +168,27 @@ function ExploreSkills() {
           </div>
         ) : filteredMatches.length > 0 ? (
           <div className="skills-grid">
-            {filteredMatches.map((match) => (
+            {filteredMatches.map((match) => {
+              const requestKey =
+                `${match.userId}-${match.skillTheyTeachId}-` +
+                match.skillYouTeachId
+              const matchingRequest = existingRequests.find(
+                (request) =>
+                  (request.status === 'PENDING' ||
+                    (request.status === 'ACCEPTED' &&
+                      !request.skillsChangedSinceAcceptance)) &&
+                  ((request.teacherSkillId === match.skillTheyTeachId &&
+                    request.learnerSkillId === match.skillYouTeachId) ||
+                    (request.teacherSkillId === match.skillYouTeachId &&
+                      request.learnerSkillId === match.skillTheyTeachId))
+              )
+              const requestStatus =
+                sentRequests[requestKey] || matchingRequest?.status
+
+              return (
               <article
                 className="skill-card reciprocal-match-card"
-                key={`${match.userId}-${match.skillTheyTeachId}-${match.skillYouTeach}`}
+                key={`${match.userId}-${match.skillTheyTeachId}-${match.skillYouTeachId}`}
               >
                 <div className="skill-card-top">
                   <div className="skill-icon" aria-hidden="true">
@@ -182,28 +217,33 @@ function ExploreSkills() {
                 </div>
 
                 <p className="match-explanation">{match.explanation}</p>
-                <button
-                  type="button"
-                  className="primary-btn match-request-btn"
-                  onClick={() => handleSendRequest(match)}
-                  disabled={
-                    sendingKey !== '' ||
-                    sentRequests[
-                      `${match.userId}-${match.skillTheyTeachId}-${match.skillYouTeachId}`
-                    ]
-                  }
-                >
-                  {sendingKey ===
-                  `${match.userId}-${match.skillTheyTeachId}-${match.skillYouTeachId}`
-                    ? 'Sending...'
-                    : sentRequests[
-                          `${match.userId}-${match.skillTheyTeachId}-${match.skillYouTeachId}`
-                        ]
-                      ? 'Request sent'
+                {requestsLoading ? (
+                  <p className="match-request-status" role="status">
+                    Checking exchange status...
+                  </p>
+                ) : requestStatus === 'ACCEPTED' ? (
+                  <p className="match-request-status" role="status">
+                    Exchange accepted
+                  </p>
+                ) : requestStatus === 'PENDING' ? (
+                  <p className="match-request-status" role="status">
+                    Exchange request pending
+                  </p>
+                ) : (
+                  <button
+                    type="button"
+                    className="primary-btn match-request-btn"
+                    onClick={() => handleSendRequest(match)}
+                    disabled={sendingKey !== ''}
+                  >
+                    {sendingKey === requestKey
+                      ? 'Sending...'
                       : 'Send exchange request'}
-                </button>
+                  </button>
+                )}
               </article>
-            ))}
+              )
+            })}
           </div>
         ) : (
           <div className="explore-empty">

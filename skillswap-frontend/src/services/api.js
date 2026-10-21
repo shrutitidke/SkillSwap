@@ -186,3 +186,10 @@ export function respondToExchangeRequest(requestId, status) {
   })
 }
 
+export async function getMyClassSessions() {
+  const data = await apiRequest('/class-sessions/my-sessions')
+  if (!Array.isArray(data)) {
+    throw new Error('The class sessions API did not return a list.')
+  }
+  return data
+}

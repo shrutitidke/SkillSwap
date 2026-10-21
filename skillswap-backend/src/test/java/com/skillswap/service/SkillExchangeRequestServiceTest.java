@@ -21,11 +21,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.lenient;
@@ -94,12 +97,13 @@ class SkillExchangeRequestServiceTest {
                 .thenReturn(List.of(
                         teacherTeachesJava,
                         teacherLearnsJavaScript));
-        when(requestRepository
-                .existsByLearnerIdAndSkillIdAndLearnerSkillIdAndStatus(
+        when(requestRepository.existsActiveExchangeRequest(
                         learner.getId(),
+                        teacher.getId(),
                         teacherTeachesJava.getId(),
                         learnerTeachesJavaScript.getId(),
-                        RequestStatus.PENDING))
+                        RequestStatus.PENDING,
+                        RequestStatus.ACCEPTED))
                 .thenReturn(false);
         when(requestRepository.save(any(SkillExchangeRequest.class)))
                 .thenAnswer(invocation -> {
@@ -119,6 +123,10 @@ class SkillExchangeRequestServiceTest {
         assertEquals(101L, response.getId());
         assertEquals("Java", response.getSkillName());
         assertEquals("JavaScript", response.getLearnerSkillName());
+        assertEquals(teacherTeachesJava.getId(), response.getTeacherSkillId());
+        assertEquals(
+                learnerTeachesJavaScript.getId(),
+                response.getLearnerSkillId());
         assertEquals(RequestStatus.PENDING, response.getStatus());
         verify(requestRepository).save(any(SkillExchangeRequest.class));
         verify(notificationService).createNotification(
@@ -168,12 +176,13 @@ class SkillExchangeRequestServiceTest {
                 .thenReturn(List.of(
                         teacherTeachesJava,
                         teacherLearnsJavaScript));
-        when(requestRepository
-                .existsByLearnerIdAndSkillIdAndLearnerSkillIdAndStatus(
+        when(requestRepository.existsActiveExchangeRequest(
                         learner.getId(),
+                        teacher.getId(),
                         teacherTeachesJava.getId(),
                         learnerTeachesJavaScript.getId(),
-                        RequestStatus.PENDING))
+                        RequestStatus.PENDING,
+                        RequestStatus.ACCEPTED))
                 .thenReturn(true);
 
         SkillExchangeRequestCreateDTO request = new SkillExchangeRequestCreateDTO();
@@ -186,6 +195,41 @@ class SkillExchangeRequestServiceTest {
 
         assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
         verify(requestRepository, never()).save(any());
+    }
+
+    @Test
+    void sendRequestRejectsAcceptedReciprocalExchangeFromEitherDirection() {
+        when(skillRepository.findById(teacherTeachesJava.getId()))
+                .thenReturn(Optional.of(teacherTeachesJava));
+        when(skillRepository.findByUserId(learner.getId()))
+                .thenReturn(List.of(
+                        learnerTeachesJavaScript,
+                        learnerLearnsJava));
+        when(skillRepository.findByUserId(teacher.getId()))
+                .thenReturn(List.of(
+                        teacherTeachesJava,
+                        teacherLearnsJavaScript));
+        when(requestRepository.existsActiveExchangeRequest(
+                        learner.getId(),
+                        teacher.getId(),
+                        teacherTeachesJava.getId(),
+                        learnerTeachesJavaScript.getId(),
+                        RequestStatus.PENDING,
+                        RequestStatus.ACCEPTED))
+                .thenReturn(true);
+
+        SkillExchangeRequestCreateDTO request = new SkillExchangeRequestCreateDTO();
+        request.setSkillId(teacherTeachesJava.getId());
+        request.setLearnerSkillId(learnerTeachesJavaScript.getId());
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> requestService.sendRequest(request, authentication));
+
+        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
+        verify(requestRepository, never()).save(any());
+        verify(notificationService, never())
+                .createNotification(any(), any(), any());
     }
 
     @Test
@@ -225,6 +269,10 @@ class SkillExchangeRequestServiceTest {
         existing.setSkill(teacherTeachesJava);
         existing.setLearnerSkill(learnerTeachesJavaScript);
         existing.setStatus(RequestStatus.PENDING);
+        LocalDateTime acceptedAt = LocalDateTime.of(2026, 10, 21, 12, 0);
+        existing.setUpdatedAt(acceptedAt);
+        teacherTeachesJava.setUpdatedAt(acceptedAt.plusMinutes(1));
+        learnerTeachesJavaScript.setUpdatedAt(acceptedAt);
         when(requestRepository.findById(101L))
                 .thenReturn(Optional.of(existing));
         when(requestRepository.save(existing)).thenReturn(existing);
@@ -236,11 +284,41 @@ class SkillExchangeRequestServiceTest {
                         authentication);
 
         assertEquals(RequestStatus.ACCEPTED, response.getStatus());
+        assertEquals(acceptedAt, response.getAcceptedAt());
+        assertFalse(response.isSkillsChangedSinceAcceptance());
         verify(requestRepository).save(existing);
         verify(notificationService).createNotification(
                 learner,
                 NotificationType.SKILL_REQUEST_ACCEPTED,
                 "Teacher accepted your request to learn Java");
+    }
+
+    @Test
+    void acceptedRequestAllowsRestartAfterBothSkillsChange() {
+        when(authentication.getName()).thenReturn(teacher.getEmail());
+        when(userRepository.findByEmail(teacher.getEmail()))
+                .thenReturn(Optional.of(teacher));
+
+        LocalDateTime acceptedAt = LocalDateTime.of(2026, 10, 20, 12, 0);
+        teacherTeachesJava.setUpdatedAt(acceptedAt.plusDays(1));
+        learnerTeachesJavaScript.setUpdatedAt(acceptedAt.plusDays(1));
+
+        SkillExchangeRequest accepted = new SkillExchangeRequest();
+        accepted.setId(101L);
+        accepted.setLearner(learner);
+        accepted.setTeacher(teacher);
+        accepted.setSkill(teacherTeachesJava);
+        accepted.setLearnerSkill(learnerTeachesJavaScript);
+        accepted.setStatus(RequestStatus.ACCEPTED);
+        accepted.setUpdatedAt(acceptedAt);
+
+        when(requestRepository.findByTeacherIdOrderByCreatedAtDesc(
+                teacher.getId())).thenReturn(List.of(accepted));
+
+        List<SkillExchangeRequestResponseDTO> result =
+                requestService.getReceivedRequests(authentication);
+
+        assertTrue(result.get(0).isSkillsChangedSinceAcceptance());
     }
 
     @Test

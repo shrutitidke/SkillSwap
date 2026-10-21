@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
@@ -94,15 +95,16 @@ public class SkillExchangeRequestService {
                 teacherSkills,
                 learner.getId());
 
-        if (requestRepository
-                .existsByLearnerIdAndSkillIdAndLearnerSkillIdAndStatus(
+        if (requestRepository.existsActiveExchangeRequest(
                         learner.getId(),
+                        teacher.getId(),
                         teacherSkill.getId(),
                         learnerSkill.getId(),
-                        RequestStatus.PENDING)) {
+                        RequestStatus.PENDING,
+                        RequestStatus.ACCEPTED)) {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
-                    "A pending request already exists for this skill exchange");
+                    "A pending or accepted request already exists for this skill exchange");
         }
 
         SkillExchangeRequest skillRequest = new SkillExchangeRequest();
@@ -262,9 +264,43 @@ public class SkillExchangeRequestService {
                 request.getMessage(),
                 request.getSkill().getName(),
                 request.getStatus(),
+                request.getSkill().getId(),
                 request.getLearnerSkill() == null
                         ? null
-                        : request.getLearnerSkill().getName());
+                        : request.getLearnerSkill().getId(),
+                request.getLearnerSkill() == null
+                        ? null
+                        : request.getLearnerSkill().getName(),
+                request.getStatus() == RequestStatus.ACCEPTED
+                        ? request.getUpdatedAt()
+                        : null,
+                skillsChangedSinceAcceptance(request));
+    }
+
+    private boolean skillsChangedSinceAcceptance(
+            SkillExchangeRequest request) {
+        if (request.getStatus() != RequestStatus.ACCEPTED
+                || request.getUpdatedAt() == null
+                || request.getLearnerSkill() == null) {
+            return false;
+        }
+
+        return isSkillUpdatedAfter(
+                        request.getSkill(),
+                        request.getUpdatedAt())
+                && isSkillUpdatedAfter(
+                        request.getLearnerSkill(),
+                        request.getUpdatedAt());
+    }
+
+    private boolean isSkillUpdatedAfter(
+            Skill skill,
+            LocalDateTime acceptedAt) {
+        LocalDateTime lastChangedAt = skill.getUpdatedAt();
+        if (lastChangedAt == null) {
+            lastChangedAt = skill.getCreatedAt();
+        }
+        return lastChangedAt != null && lastChangedAt.isAfter(acceptedAt);
     }
 
     private String normalizedKey(String value) {

@@ -20,6 +20,7 @@ import Register from './pages/Register'
 import ForgotPassword from './pages/ForgotPassword'
 import MySkills from './pages/MySkills'
 import MyRequests from './pages/MyRequests'
+import Dashboard from './pages/Dashboard'
 import Terms from './pages/Terms'
 
 function AppContent() {
@@ -61,6 +62,9 @@ function AppContent() {
 
             {user && (
               <>
+                <NavLink to="/dashboard" onClick={closeMenu}>
+                  Dashboard
+                </NavLink>
                 <NavLink to="/skills" onClick={closeMenu}>
                   Get What You Want
                 </NavLink>
@@ -117,6 +121,7 @@ function AppContent() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route element={<RequireAuth />}>
+            <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/skills" element={<ExploreSkills />} />
             <Route path="/my-skills" element={<MySkills />} />
             <Route path="/my-requests" element={<MyRequests />} />

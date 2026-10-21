@@ -4,6 +4,8 @@ import com.skillswap.enums.RequestStatus;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
+import java.time.LocalDateTime;
+
 @Getter
 @AllArgsConstructor
 public class SkillExchangeRequestResponseDTO {
@@ -14,5 +16,9 @@ public class SkillExchangeRequestResponseDTO {
     private String message;
     private String skillName;
     private RequestStatus status;
+    private Long teacherSkillId;
+    private Long learnerSkillId;
     private String learnerSkillName;
+    private LocalDateTime acceptedAt;
+    private boolean skillsChangedSinceAcceptance;
 }
