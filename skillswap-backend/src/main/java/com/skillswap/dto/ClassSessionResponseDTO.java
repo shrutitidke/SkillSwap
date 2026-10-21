@@ -11,6 +11,10 @@ import java.time.LocalDateTime;
 public class ClassSessionResponseDTO {
 
     private Long id;
+    private Long requestId;
+    private Long proposerId;
+    private String proposerName;
+    private String teachingSkillName;
     private String learnerName;
     private String teacherName;
     private String skillName;

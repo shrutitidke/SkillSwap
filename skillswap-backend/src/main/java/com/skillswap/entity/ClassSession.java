@@ -23,6 +23,10 @@ public class ClassSession {
     @JoinColumn(name = "skill_exchange_request_id", nullable = false)
     private SkillExchangeRequest skillExchangeRequest;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "proposer_id")
+    private User proposer;
+
     @Column(nullable = false)
     private LocalDateTime scheduledAt;
 

@@ -213,3 +213,23 @@ export async function getMyClassSessions() {
   }
   return data
 }
+
+export function proposeClassSession(requestId, session) {
+  return apiRequest(`/class-sessions/requests/${requestId}`, {
+    method: 'POST',
+    body: JSON.stringify(session),
+  })
+}
+
+export function respondToClassSession(sessionId, status) {
+  return apiRequest(`/class-sessions/${sessionId}/respond`, {
+    method: 'PUT',
+    body: JSON.stringify({ status }),
+  })
+}
+
+export function cancelClassSession(sessionId) {
+  return apiRequest(`/class-sessions/${sessionId}/cancel`, {
+    method: 'PUT',
+  })
+}

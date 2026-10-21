@@ -3039,6 +3039,115 @@ body,
   font-size: 12px;
 }
 
+.request-session-panel {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #eee8f6;
+}
+
+.request-session-panel h4 {
+  color: #453b59;
+  font-size: 15px;
+}
+
+.request-session-help {
+  color: #716981;
+  font-size: 12px;
+}
+
+.request-session-list {
+  display: grid;
+  gap: 10px;
+}
+
+.request-session {
+  display: grid;
+  gap: 7px;
+  padding: 12px;
+  border: 1px solid #eee8f6;
+  border-radius: 10px;
+  background: #fcfbff;
+}
+
+.request-session-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: #453b59;
+  font-size: 13px;
+}
+
+.request-session > p,
+.request-session-empty {
+  color: #716981;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.request-session-link a {
+  color: #7045cb;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  overflow-wrap: anywhere;
+}
+
+.request-session-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.request-session-form {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid #eee8f6;
+  border-radius: 10px;
+  background: #fcfbff;
+}
+
+.request-session-form h5 {
+  color: #453b59;
+  font-size: 14px;
+}
+
+.request-session-form label {
+  display: grid;
+  gap: 5px;
+  color: #514663;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.request-session-form input,
+.request-session-form select,
+.request-session-form textarea {
+  width: 100%;
+  min-height: 38px;
+  padding: 9px 10px;
+  border: 1px solid #ddd5e9;
+  border-radius: 8px;
+  color: #352b4b;
+  background: #ffffff;
+  font: inherit;
+  font-size: 13px;
+}
+
+.request-session-form textarea {
+  resize: vertical;
+}
+
+.request-session-form input:focus,
+.request-session-form select:focus,
+.request-session-form textarea:focus {
+  outline: 2px solid #d7c7f3;
+  border-color: #895fce;
+}
+
 @media (max-width: 600px) {
   .chat-page {
     padding: 34px 5% 45px;

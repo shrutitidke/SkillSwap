@@ -1,28 +1,27 @@
 package com.skillswap.service;
 
 import com.skillswap.dto.ClassSessionCreateDTO;
+import com.skillswap.dto.ClassSessionDecisionDTO;
 import com.skillswap.dto.ClassSessionResponseDTO;
 import com.skillswap.entity.ClassSession;
 import com.skillswap.entity.SkillExchangeRequest;
+import com.skillswap.entity.Skill;
 import com.skillswap.entity.User;
+import com.skillswap.enums.NotificationType;
 import com.skillswap.enums.RequestStatus;
 import com.skillswap.enums.SessionStatus;
 import com.skillswap.exception.UserNotFoundException;
 import com.skillswap.repository.ClassSessionRepository;
 import com.skillswap.repository.SkillExchangeRequestRepository;
 import com.skillswap.repository.UserRepository;
+import com.skillswap.service.NotificationService;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
-import com.skillswap.dto.ClassSessionDecisionDTO;
-import org.springframework.transaction.annotation.Transactional;
-import com.skillswap.repository.ClassSessionRepository;
-import com.skillswap.enums.NotificationType;
-import com.skillswap.service.NotificationService;
-import java.time.LocalDateTime;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -54,7 +53,7 @@ public class ClassSessionService {
 
         String email = authentication.getName();
 
-        User teacher = userRepository.findByEmail(email)
+        User proposer = userRepository.findByEmail(email)
                 .orElseThrow(() ->
                         new UserNotFoundException("User not found"));
 
@@ -65,10 +64,14 @@ public class ClassSessionService {
                                         HttpStatus.NOT_FOUND,
                                         "Skill request not found"));
 
-        if (!request.getTeacher().getId().equals(teacher.getId())) {
+        boolean proposerIsTeacher =
+                request.getTeacher().getId().equals(proposer.getId());
+        boolean proposerIsLearner =
+                request.getLearner().getId().equals(proposer.getId());
+        if (!proposerIsTeacher && !proposerIsLearner) {
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
-                    "Only the teacher can propose a class");
+                    "Only exchange participants can propose a class");
         }
 
         if (request.getStatus() != RequestStatus.ACCEPTED) {
@@ -77,8 +80,15 @@ public class ClassSessionService {
                     "A class can only be proposed for an accepted request");
         }
 
+        if (proposerIsLearner && request.getLearnerSkill() == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "A reciprocal teaching skill is required to propose a class");
+        }
+
         ClassSession session = new ClassSession();
         session.setSkillExchangeRequest(request);
+        session.setProposer(proposer);
         session.setScheduledAt(dto.getScheduledAt());
         session.setDurationMinutes(dto.getDurationMinutes());
         session.setMeetingLink(dto.getMeetingLink());
@@ -87,12 +97,14 @@ public class ClassSessionService {
 
         ClassSession saved = sessionRepository.save(session);
 
+        User otherParticipant =
+                proposerIsTeacher ? request.getLearner() : request.getTeacher();
         notificationService.createNotification(
-                request.getLearner(),
+                otherParticipant,
                 NotificationType.SESSION_PROPOSED,
-                teacher.getName()
+                proposer.getName()
                         + " proposed a class for "
-                        + request.getSkill().getName()
+                        + teachingSkillName(session, request)
         );
 
         return toResponseDTO(saved);
@@ -103,9 +115,14 @@ public class ClassSessionService {
 
         SkillExchangeRequest request =
                 session.getSkillExchangeRequest();
+        User proposer = sessionProposer(session, request);
 
         return new ClassSessionResponseDTO(
                 session.getId(),
+                request.getId(),
+                proposer.getId(),
+                proposer.getName(),
+                teachingSkillName(session, request),
                 request.getLearner().getName(),
                 request.getTeacher().getName(),
                 request.getSkill().getName(),
@@ -146,7 +163,7 @@ public class ClassSessionService {
 
         String email = authentication.getName();
 
-        User learner = userRepository.findByEmail(email)
+        User responder = userRepository.findByEmail(email)
                 .orElseThrow(() ->
                         new UserNotFoundException("User not found"));
 
@@ -159,10 +176,20 @@ public class ClassSessionService {
         SkillExchangeRequest request =
                 session.getSkillExchangeRequest();
 
-        if (!request.getLearner().getId().equals(learner.getId())) {
+        boolean isParticipant =
+                request.getLearner().getId().equals(responder.getId())
+                        || request.getTeacher().getId().equals(responder.getId());
+        if (!isParticipant) {
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
-                    "Only the learner can respond to this session");
+                    "Only exchange participants can respond to this session");
+        }
+
+        User proposer = sessionProposer(session, request);
+        if (proposer.getId().equals(responder.getId())) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "The other participant must respond to this session");
         }
 
         if (session.getStatus() != SessionStatus.PROPOSED) {
@@ -189,18 +216,18 @@ public class ClassSessionService {
 
         if (newStatus == SessionStatus.CONFIRMED) {
             notificationType = NotificationType.SESSION_CONFIRMED;
-            notificationMessage = learner.getName()
-                    + " confirmed the class for "
-                    + request.getSkill().getName();
+            notificationMessage = responder.getName()
+                    + " confirmed the class to teach "
+                    + teachingSkillName(session, request);
         } else {
             notificationType = NotificationType.SESSION_DECLINED;
-            notificationMessage = learner.getName()
-                    + " declined the class for "
-                    + request.getSkill().getName();
+            notificationMessage = responder.getName()
+                    + " declined the class to teach "
+                    + teachingSkillName(session, request);
         }
 
         notificationService.createNotification(
-                request.getTeacher(),
+                proposer,
                 notificationType,
                 notificationMessage
         );
@@ -242,10 +269,10 @@ public class ClassSessionService {
                     "This session cannot be cancelled");
         }
 
-        if (session.getScheduledAt().isBefore(LocalDateTime.now())) {
+        if (!session.getScheduledAt().isAfter(LocalDateTime.now())) {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
-                    "Past sessions cannot be cancelled");
+                    "Sessions cannot be cancelled at or after their scheduled start time");
         }
 
         session.setStatus(SessionStatus.CANCELLED);
@@ -260,11 +287,32 @@ public class ClassSessionService {
                 otherParticipant,
                 NotificationType.SESSION_CANCELLED,
                 currentUser.getName()
-                        + " cancelled the class for "
-                        + request.getSkill().getName()
+                        + " cancelled the class to teach "
+                        + teachingSkillName(session, request)
         );
 
         return toResponseDTO(savedSession);
+    }
+
+    private User sessionProposer(
+            ClassSession session,
+            SkillExchangeRequest request) {
+        return session.getProposer() == null
+                ? request.getTeacher()
+                : session.getProposer();
+    }
+
+    private String teachingSkillName(
+            ClassSession session,
+            SkillExchangeRequest request) {
+        User proposer = sessionProposer(session, request);
+        Skill teachingSkill =
+                proposer.getId().equals(request.getLearner().getId())
+                        ? request.getLearnerSkill()
+                        : request.getSkill();
+        return teachingSkill == null
+                ? request.getSkill().getName()
+                : teachingSkill.getName();
     }
 
 

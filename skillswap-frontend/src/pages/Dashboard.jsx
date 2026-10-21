@@ -442,7 +442,7 @@ function Dashboard() {
                       ◷
                     </div>
                     <div>
-                      <h3>{session.skillName}</h3>
+                      <h3>{session.teachingSkillName || session.skillName}</h3>
                       <p>
                         {session.teacherName} and {session.learnerName}
                       </p>
