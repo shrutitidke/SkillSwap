@@ -49,6 +49,13 @@ public class User {
     @Column(nullable = false)
     private Role role = Role.USER;
 
+    @Column(
+            name = "token_version",
+            nullable = false,
+            columnDefinition = "bigint not null default 0"
+    )
+    private long tokenVersion;
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 

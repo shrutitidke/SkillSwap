@@ -1,165 +1,221 @@
 package com.skillswap.service;
 
-import com.skillswap.security.PasswordResetToken;
+import com.skillswap.dto.OtpVerificationResponse;
+import com.skillswap.entity.PasswordResetChallenge;
+import com.skillswap.entity.User;
+import com.skillswap.repository.PasswordResetChallengeRepository;
+import com.skillswap.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.mail.MailException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
-import java.util.Map;
-import java.util.UUID;
-import java.time.Duration;
-import com.skillswap.dto.OtpVerificationResponse;
-import java.time.LocalDateTime;
-import java.util.concurrent.ConcurrentHashMap;
-
-import com.skillswap.repository.UserRepository;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import com.skillswap.entity.User;
+import java.util.Base64;
+import java.util.Locale;
+import java.util.Optional;
 
 @Service
 public class PasswordResetService {
 
+    private static final Logger LOGGER =
+            LoggerFactory.getLogger(PasswordResetService.class);
+    private static final int MAX_VERIFICATION_ATTEMPTS = 5;
+    private static final int MAX_REQUESTS_PER_HOUR = 3;
+    private static final int RESEND_COOLDOWN_SECONDS = 60;
+
     private final EmailService emailService;
     private final UserRepository userRepository;
+    private final PasswordResetChallengeRepository challengeRepository;
     private final PasswordEncoder passwordEncoder;
-
     private final SecureRandom secureRandom = new SecureRandom();
 
-    private final Map<String, PasswordResetToken> resetTokens =
-            new ConcurrentHashMap<>();
-
-
-
-    private final Map<String, String> verifiedResetTokens =
-            new ConcurrentHashMap<>();
-
-    private final Map<String, LocalDateTime> resetTokenExpiry =
-            new ConcurrentHashMap<>();
-
-    public PasswordResetService(EmailService emailService, UserRepository userRepository,  PasswordEncoder passwordEncoder) {
+    public PasswordResetService(
+            EmailService emailService,
+            UserRepository userRepository,
+            PasswordResetChallengeRepository challengeRepository,
+            PasswordEncoder passwordEncoder) {
         this.emailService = emailService;
         this.userRepository = userRepository;
+        this.challengeRepository = challengeRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
+    @Transactional
     public void generateAndSendOtp(String email) {
-
-        // Check whether the email belongs to a registered user
-        if (!userRepository.existsByEmail(email)) {
+        Optional<User> account = userRepository.findByEmailIgnoreCase(
+                email.trim());
+        if (account.isEmpty()) {
             return;
         }
 
-        // Generate a random 6-digit OTP
+        User user = account.get();
+        LocalDateTime now = LocalDateTime.now();
+        PasswordResetChallenge challenge = challengeRepository
+                .findByUserIdForUpdate(user.getId())
+                .orElseGet(() -> new PasswordResetChallenge(user));
+
+        if (isRequestLimited(challenge, now)) {
+            return;
+        }
+
+        updateRequestWindow(challenge, now);
+        challenge.setRequestsInWindow(challenge.getRequestsInWindow() + 1);
+        challenge.setLastRequestedAt(now);
+
         String otp = String.format(
+                Locale.ROOT,
                 "%06d",
-                secureRandom.nextInt(1_000_000)
-        );
+                secureRandom.nextInt(1_000_000));
 
-        // Set OTP expiry time to 5 minutes
-        LocalDateTime expiryTime = LocalDateTime.now().plusMinutes(10);
+        challenge.setOtpHash(passwordEncoder.encode(otp));
+        challenge.setOtpExpiresAt(now.plusMinutes(5));
+        challenge.setVerificationAttempts(0);
+        challenge.setOtpUsed(false);
+        challenge.invalidateResetAuthorization();
+        challengeRepository.saveAndFlush(challenge);
 
-        // Create the password reset token
-        PasswordResetToken resetToken =
-                new PasswordResetToken(otp, expiryTime);
-
-        // Store the OTP temporarily
-        resetTokens.put(email, resetToken);
-
-        // Send the OTP to the registered email
-        emailService.sendOtpEmail(email, otp);
+        try {
+            emailService.sendOtpEmail(user.getEmail(), otp);
+        } catch (MailException | IllegalStateException exception) {
+            challenge.invalidateOtp();
+            challengeRepository.save(challenge);
+            LOGGER.warn(
+                    "Password-reset OTP delivery failed; check mail configuration.");
+        }
     }
 
+    @Transactional
     public OtpVerificationResponse verifyOtp(
-            String email, String enteredOtp) {
-
-        PasswordResetToken resetToken = resetTokens.get(email);
-
-        if (resetToken == null) {
-            return new OtpVerificationResponse(
-                    "Invalid or expired OTP", null);
+            String email,
+            String enteredOtp) {
+        Optional<User> account = userRepository.findByEmailIgnoreCase(
+                email.trim());
+        if (account.isEmpty()) {
+            return invalidOtpResponse();
         }
 
-        if (resetToken.isExpired()) {
-            resetTokens.remove(email, resetToken);
-            return new OtpVerificationResponse(
-                    "Invalid or expired OTP", null);
+        PasswordResetChallenge challenge = challengeRepository
+                .findByUserIdForUpdate(account.get().getId())
+                .orElse(null);
+        if (challenge == null || challenge.isOtpUsed()
+                || challenge.getOtpHash() == null
+                || challenge.getOtpExpiresAt() == null
+                || !challenge.getOtpExpiresAt().isAfter(LocalDateTime.now())) {
+            return invalidOtpResponse();
         }
 
-        if (resetToken.hasExceededAttempts()) {
-            resetTokens.remove(email, resetToken);
+        if (challenge.getVerificationAttempts()
+                >= MAX_VERIFICATION_ATTEMPTS) {
+            challenge.invalidateOtp();
+            challengeRepository.save(challenge);
             return new OtpVerificationResponse(
-                    "Invalid or expired OTP", null);
+                    "Too many attempts. Request a new OTP.",
+                    null);
         }
 
-        if (!resetToken.getOtp().equals(enteredOtp)) {
-            resetToken.incrementAttempts();
-
-            if (resetToken.hasExceededAttempts()) {
-                resetTokens.remove(email, resetToken);
+        if (!passwordEncoder.matches(enteredOtp, challenge.getOtpHash())) {
+            int attempts = challenge.getVerificationAttempts() + 1;
+            challenge.setVerificationAttempts(attempts);
+            if (attempts >= MAX_VERIFICATION_ATTEMPTS) {
+                challenge.invalidateOtp();
+                challengeRepository.save(challenge);
+                return new OtpVerificationResponse(
+                        "Too many attempts. Request a new OTP.",
+                        null);
             }
-
-            return new OtpVerificationResponse(
-                    "Invalid or expired OTP", null);
+            challengeRepository.save(challenge);
+            return invalidOtpResponse();
         }
 
-        // OTP is correct; remove it so it cannot be reused.
-        resetTokens.remove(email, resetToken);
+        challenge.invalidateOtp();
 
-        // Generate a separate reset authorization token.
-        String newResetToken = UUID.randomUUID().toString();
-
-        verifiedResetTokens.put(newResetToken, email);
-        resetTokenExpiry.put(
-                newResetToken,
-                LocalDateTime.now().plusMinutes(10)
-        );
+        String selector = randomUrlSafeValue(16);
+        String verifier = randomUrlSafeValue(32);
+        challenge.setResetAuthorizationSelector(selector);
+        challenge.setResetAuthorizationHash(
+                passwordEncoder.encode(verifier));
+        challenge.setResetAuthorizationExpiresAt(
+                LocalDateTime.now().plusMinutes(10));
+        challengeRepository.save(challenge);
 
         return new OtpVerificationResponse(
                 "OTP verified successfully",
-                newResetToken
-        );
+                selector + "." + verifier);
     }
 
-    public boolean resetPassword(String token, String newPassword) {
-
-        // Find the email associated with the reset token
-        String email = verifiedResetTokens.get(token);
-
-        if (email == null) {
+    @Transactional
+    public boolean resetPassword(String resetToken, String newPassword) {
+        String[] tokenParts = resetToken.split("\\.", -1);
+        if (tokenParts.length != 2
+                || tokenParts[0].length() != 22
+                || tokenParts[1].length() != 43) {
             return false;
         }
 
-        // Check whether the reset token has expired
-        LocalDateTime expiryTime = resetTokenExpiry.get(token);
-
-        if (expiryTime == null || LocalDateTime.now().isAfter(expiryTime)) {
-            verifiedResetTokens.remove(token);
-            resetTokenExpiry.remove(token);
+        PasswordResetChallenge challenge = challengeRepository
+                .findByResetAuthorizationSelector(tokenParts[0])
+                .orElse(null);
+        if (challenge == null
+                || challenge.getResetAuthorizationHash() == null
+                || challenge.getResetAuthorizationExpiresAt() == null
+                || !challenge.getResetAuthorizationExpiresAt()
+                        .isAfter(LocalDateTime.now())
+                || !passwordEncoder.matches(
+                        tokenParts[1],
+                        challenge.getResetAuthorizationHash())) {
             return false;
         }
 
-        // Find the registered user
-        User user = userRepository.findByEmail(email).orElse(null);
-
-        if (user == null) {
-            verifiedResetTokens.remove(token);
-            resetTokenExpiry.remove(token);
-            return false;
-        }
-
-        // Encode the new password using BCrypt
+        User user = challenge.getUser();
         user.setPassword(passwordEncoder.encode(newPassword));
-
-        // Save the updated password in MySQL
+        user.setTokenVersion(user.getTokenVersion() + 1);
         userRepository.save(user);
 
-        // Remove the token so it cannot be reused
-        verifiedResetTokens.remove(token);
-        resetTokenExpiry.remove(token);
-
+        challenge.invalidateOtp();
+        challenge.invalidateResetAuthorization();
+        challengeRepository.save(challenge);
         return true;
     }
 
+    private boolean isRequestLimited(
+            PasswordResetChallenge challenge,
+            LocalDateTime now) {
+        if (challenge.getLastRequestedAt() != null
+                && challenge.getLastRequestedAt().plusSeconds(
+                        RESEND_COOLDOWN_SECONDS).isAfter(now)) {
+            return true;
+        }
 
+        return challenge.getRequestWindowStartedAt() != null
+                && challenge.getRequestWindowStartedAt().plusHours(1)
+                        .isAfter(now)
+                && challenge.getRequestsInWindow() >= MAX_REQUESTS_PER_HOUR;
+    }
 
+    private void updateRequestWindow(
+            PasswordResetChallenge challenge,
+            LocalDateTime now) {
+        if (challenge.getRequestWindowStartedAt() == null
+                || !challenge.getRequestWindowStartedAt()
+                        .plusHours(1).isAfter(now)) {
+            challenge.setRequestWindowStartedAt(now);
+            challenge.setRequestsInWindow(0);
+        }
+    }
+
+    private String randomUrlSafeValue(int byteLength) {
+        byte[] value = new byte[byteLength];
+        secureRandom.nextBytes(value);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(value);
+    }
+
+    private OtpVerificationResponse invalidOtpResponse() {
+        return new OtpVerificationResponse(
+                "Invalid or expired OTP",
+                null);
+    }
 }

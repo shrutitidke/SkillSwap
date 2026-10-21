@@ -1,10 +1,11 @@
 
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { loginUser } from '../services/api'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { loginUser, setAuthToken } from '../services/api'
 
 function Login() {
   const navigate = useNavigate()
+  const location = useLocation()
 
   const [showPassword, setShowPassword] = useState(false)
   const [email, setEmail] = useState('')
@@ -34,8 +35,7 @@ function Login() {
         throw new Error('Login response did not contain an authentication token.')
       }
 
-      localStorage.setItem('skillswap_token', response.token)
-      window.dispatchEvent(new Event('skillswap-auth-change'))
+      setAuthToken(response.token)
 
       setPopup({
         show: true,
@@ -63,7 +63,9 @@ function Login() {
     })
 
     if (loginSuccessful) {
-      navigate('/skills')
+      navigate(location.state?.from?.pathname || '/skills', {
+        replace: true,
+      })
     }
   }
 

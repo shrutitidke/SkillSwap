@@ -14,4 +14,5 @@ public class SkillExchangeRequestResponseDTO {
     private String message;
     private String skillName;
     private RequestStatus status;
+    private String learnerSkillName;
 }

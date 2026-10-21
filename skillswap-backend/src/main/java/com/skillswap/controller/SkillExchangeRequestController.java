@@ -44,7 +44,15 @@ public class SkillExchangeRequestController {
 
         return ResponseEntity.ok(requests);
     }
-    
+
+    @GetMapping("/sent")
+    public ResponseEntity<List<SkillExchangeRequestResponseDTO>> getSentRequests(
+            Authentication authentication) {
+
+        return ResponseEntity.ok(
+                requestService.getSentRequests(authentication));
+    }
+
     @PutMapping("/{requestId}/respond")
     public ResponseEntity<SkillExchangeRequestResponseDTO> respondToRequest(
             @PathVariable Long requestId,

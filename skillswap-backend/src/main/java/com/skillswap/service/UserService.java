@@ -6,8 +6,10 @@ import com.skillswap.enums.Role;
 import com.skillswap.exception.EmailAlreadyExistsException;
 import com.skillswap.repository.UserRepository;
 import com.skillswap.security.JwtService;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -45,28 +47,37 @@ public class UserService {
     public LoginResponse loginUser(LoginRequest request) {
 
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("Invalid email or password"));
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.UNAUTHORIZED,
+                        "Invalid email or password"));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new RuntimeException("Invalid email or password");
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED,
+                    "Invalid email or password");
         }
 
-        String token = jwtService.generateToken(user.getEmail());
+        String token = jwtService.generateToken(
+                user.getEmail(),
+                user.getTokenVersion());
 
         return new LoginResponse(token);
+    }
+
+    public UserResponse getCurrentUser(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.UNAUTHORIZED,
+                        "Authenticated user was not found"));
+
+        return toUserResponse(user);
     }
 
     public List<UserResponse> getAllUsers() {
 
         return userRepository.findAll()
                 .stream()
-                .map(user -> new UserResponse(
-                        user.getId(),
-                        user.getName(),
-                        user.getEmail(),
-                        user.getRole(),
-                        user.getCreatedAt()
-                ))
+                .map(this::toUserResponse)
                 .toList();
     }
 
@@ -89,12 +100,16 @@ public class UserService {
 
         User updatedUser = userRepository.save(user);
 
+        return toUserResponse(updatedUser);
+    }
+
+    private UserResponse toUserResponse(User user) {
         return new UserResponse(
-                updatedUser.getId(),
-                updatedUser.getName(),
-                updatedUser.getEmail(),
-                updatedUser.getRole(),
-                updatedUser.getCreatedAt()
+                user.getId(),
+                user.getName(),
+                user.getEmail(),
+                user.getRole(),
+                user.getCreatedAt()
         );
     }
 }

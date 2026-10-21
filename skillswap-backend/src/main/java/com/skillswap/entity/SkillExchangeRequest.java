@@ -23,6 +23,10 @@ public class SkillExchangeRequest {
     @JoinColumn(name = "skill_id", nullable = false)
     private Skill skill;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "learner_skill_id")
+    private Skill learnerSkill;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "learner_id", nullable = false)
     private User learner;

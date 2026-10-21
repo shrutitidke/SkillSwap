@@ -134,6 +134,25 @@ a {
   gap: 22px;
 }
 
+.nav-user {
+  color: #514663;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.auth-route-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  min-height: 280px;
+  padding: 30px 20px;
+  color: #514663;
+  text-align: center;
+}
+
 .login-btn {
   color: #514663;
   font-size: 14px;
@@ -1102,6 +1121,33 @@ body,
   line-height: 1.5;
 }
 
+.forgot-notice {
+  margin: 0 0 16px;
+  padding: 11px 13px;
+  border: 1px solid #d9ccef;
+  border-radius: 10px;
+  color: #514663;
+  background: #f7f3ff;
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: left;
+}
+
+.forgot-text-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.forgot-login-button {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.forgot-password-card .auth-submit:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
 .forgot-back-link {
   display: inline-block;
   margin-top: 24px;
@@ -1300,6 +1346,171 @@ body,
   font-size: 18px;
 }
 
+.reciprocal-match-card {
+  gap: 12px;
+}
+
+.match-skill {
+  padding: 13px 14px;
+  border: 1px solid #eee8f6;
+  border-radius: 12px;
+  background: #fbf9fe;
+  color: #413951;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.match-skill strong {
+  color: #523487;
+}
+
+.match-skill .skill-description {
+  margin: 5px 0 0;
+}
+
+.match-explanation {
+  margin: 0;
+  color: #777187;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.match-request-btn {
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+.request-notice,
+.request-error {
+  margin: 0 0 16px;
+  padding: 12px 15px;
+  border-radius: 10px;
+  font-size: 14px;
+}
+
+.request-notice {
+  color: #256844;
+  background: #eaf7ef;
+}
+
+.request-error {
+  color: #9c2e36;
+  background: #fff0f0;
+}
+
+.requests-page {
+  width: 100%;
+  max-width: 1180px;
+  min-height: calc(100vh - 134px);
+  margin: 0 auto;
+  padding: 48px 6% 60px;
+}
+
+.requests-header {
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+.requests-header h1 {
+  margin: 10px 0;
+  color: #29243b;
+  font-size: clamp(30px, 4vw, 42px);
+}
+
+.requests-header > p:last-child {
+  color: #777187;
+  line-height: 1.7;
+}
+
+.request-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 28px;
+}
+
+.request-section {
+  min-width: 0;
+}
+
+.request-list {
+  display: grid;
+  gap: 14px;
+}
+
+.request-card {
+  padding: 20px;
+  border: 1px solid #eee8f6;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 8px 24px rgba(65, 42, 113, 0.05);
+}
+
+.request-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.request-card-header h3 {
+  margin: 0;
+  color: #29243b;
+  font-size: 17px;
+}
+
+.request-status {
+  flex: 0 0 auto;
+  padding: 5px 9px;
+  border-radius: 20px;
+  background: #f5f1fb;
+  color: #655783;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.status-accepted {
+  color: #256844;
+  background: #eaf7ef;
+}
+
+.status-rejected {
+  color: #9c2e36;
+  background: #fff0f0;
+}
+
+.request-card > p {
+  margin: 8px 0;
+  color: #655f72;
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.request-message {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fbf9fe;
+}
+
+.request-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.request-actions button {
+  border: 0;
+  cursor: pointer;
+}
+
+.request-actions button:disabled,
+.match-request-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
 .skill-description {
   flex: 1;
   margin: 0 0 22px;
@@ -1365,6 +1576,15 @@ body,
 
   .skill-card {
     padding: 19px;
+  }
+
+  .requests-page {
+    padding: 35px 5% 45px;
+  }
+
+  .request-columns {
+    grid-template-columns: 1fr;
+    gap: 28px;
   }
 }
 
@@ -2199,4 +2419,3 @@ body,
     padding: 12px 0;
   }
 }
-

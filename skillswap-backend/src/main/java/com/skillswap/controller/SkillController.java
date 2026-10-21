@@ -1,6 +1,7 @@
 package com.skillswap.controller;
 
 import com.skillswap.dto.SkillDiscoveryResponse;
+import com.skillswap.dto.ReciprocalMatchResponse;
 import com.skillswap.dto.SkillRequest;
 import com.skillswap.dto.SkillResponse;
 import com.skillswap.service.SkillService;
@@ -73,6 +74,13 @@ public class SkillController {
                 skillService.discoverSkills(authentication);
 
         return ResponseEntity.ok(skills);
+    }
+
+    @GetMapping("/matches")
+    public ResponseEntity<List<ReciprocalMatchResponse>> getReciprocalMatches(
+            Authentication authentication) {
+        return ResponseEntity.ok(
+                skillService.getReciprocalMatches(authentication));
     }
 
 }

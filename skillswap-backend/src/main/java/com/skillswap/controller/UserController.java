@@ -1,7 +1,6 @@
 package com.skillswap.controller;
 
 import com.skillswap.dto.*;
-import com.skillswap.entity.User;
 import com.skillswap.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -40,14 +39,11 @@ public class UserController {
     }
 
     @GetMapping("/me")
-    public ResponseEntity<MessageResponse> getCurrentUser(
+    public ResponseEntity<UserResponse> getCurrentUser(
             Authentication authentication) {
 
         return ResponseEntity.ok(
-                new MessageResponse(
-                        "Authenticated as: " + authentication.getName()
-                )
-        );
+                userService.getCurrentUser(authentication.getName()));
     }
 
     @PutMapping("/me")

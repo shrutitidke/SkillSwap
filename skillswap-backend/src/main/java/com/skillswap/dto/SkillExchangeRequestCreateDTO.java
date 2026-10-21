@@ -13,6 +13,8 @@ public class SkillExchangeRequestCreateDTO {
     @NotNull(message = "Skill ID is required")
     private Long skillId;
 
+    private Long learnerSkillId;
+
     @Size(max = 500, message = "Message cannot exceed 500 characters")
     private String message;
 }

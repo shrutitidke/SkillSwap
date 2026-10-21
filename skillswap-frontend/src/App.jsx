@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import {
   BrowserRouter,
   Routes,
@@ -10,39 +10,26 @@ import {
 } from 'react-router-dom'
 
 import './App.css'
+import RequireAuth from './auth/RequireAuth'
+import AuthProvider from './auth/AuthProvider'
+import useAuth from './auth/useAuth'
 import Home from './pages/Home'
 import ExploreSkills from './pages/ExploreSkills'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import ForgotPassword from './pages/ForgotPassword'
+import MySkills from './pages/MySkills'
+import MyRequests from './pages/MyRequests'
 import Terms from './pages/Terms'
 
 function AppContent() {
   const [menuOpen, setMenuOpen] = useState(false)
-  const [isLoggedIn, setIsLoggedIn] = useState(
-    () => Boolean(localStorage.getItem('skillswap_token'))
-  )
-
   const navigate = useNavigate()
+  const { user, token, loading, logout } = useAuth()
   const closeMenu = () => setMenuOpen(false)
 
-  useEffect(() => {
-    const syncAuth = () => {
-      setIsLoggedIn(Boolean(localStorage.getItem('skillswap_token')))
-    }
-
-    window.addEventListener('skillswap-auth-change', syncAuth)
-    window.addEventListener('storage', syncAuth)
-
-    return () => {
-      window.removeEventListener('skillswap-auth-change', syncAuth)
-      window.removeEventListener('storage', syncAuth)
-    }
-  }, [])
-
   const handleLogout = () => {
-    localStorage.removeItem('skillswap_token')
-    setIsLoggedIn(false)
+    logout()
     closeMenu()
     navigate('/login')
   }
@@ -72,20 +59,37 @@ function AppContent() {
               Home
             </NavLink>
 
-            <NavLink to="/skills" onClick={closeMenu}>
-              Explore Skills
-            </NavLink>
+            {user && (
+              <>
+                <NavLink to="/skills" onClick={closeMenu}>
+                  Get What You Want
+                </NavLink>
+                <NavLink to="/my-skills" onClick={closeMenu}>
+                  My Skills
+                </NavLink>
+                <NavLink to="/my-requests" onClick={closeMenu}>
+                  My Requests
+                </NavLink>
+              </>
+            )}
           </nav>
 
           <div className="nav-buttons">
-            {isLoggedIn ? (
-              <button
-                type="button"
-                className="primary-btn nav-signup"
-                onClick={handleLogout}
-              >
-                Logout
-              </button>
+            {user ? (
+              <>
+                <span className="nav-user">Hi, {user.name}</span>
+                <button
+                  type="button"
+                  className="primary-btn nav-signup"
+                  onClick={handleLogout}
+                >
+                  Logout
+                </button>
+              </>
+            ) : token && loading ? (
+              <span className="nav-user" role="status">
+                Loading profile...
+              </span>
             ) : (
               <>
                 <Link
@@ -101,7 +105,7 @@ function AppContent() {
                   className="primary-btn nav-signup"
                   onClick={closeMenu}
                 >
-                  Sign Up
+                  Register
                 </Link>
               </>
             )}
@@ -112,7 +116,11 @@ function AppContent() {
       <main className="main-content">
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/skills" element={<ExploreSkills />} />
+          <Route element={<RequireAuth />}>
+            <Route path="/skills" element={<ExploreSkills />} />
+            <Route path="/my-skills" element={<MySkills />} />
+            <Route path="/my-requests" element={<MyRequests />} />
+          </Route>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -132,7 +140,9 @@ function AppContent() {
 function App() {
   return (
     <BrowserRouter>
-      <AppContent />
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </BrowserRouter>
   )
 }

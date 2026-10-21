@@ -1,95 +1,139 @@
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
+const TOKEN_KEY = 'skillswap_token'
+export const AUTH_CHANGE_EVENT = 'skillswap-auth-change'
 
-const API_BASE_URL = 'http://localhost:8080/api'
+export function setAuthToken(token) {
+  localStorage.setItem(TOKEN_KEY, token)
+  window.dispatchEvent(new Event(AUTH_CHANGE_EVENT))
+}
 
-export async function registerUser(userData) {
-  const response = await fetch(`${API_BASE_URL}/users/register`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(userData),
+export function clearAuthToken() {
+  localStorage.removeItem(TOKEN_KEY)
+  window.dispatchEvent(new Event(AUTH_CHANGE_EVENT))
+}
+
+export async function apiRequest(path, options = {}) {
+  const { authenticated = true, ...fetchOptions } = options
+  const token = authenticated ? localStorage.getItem(TOKEN_KEY) : null
+  const headers = new Headers(fetchOptions.headers || {})
+
+  headers.set('Accept', 'application/json')
+
+  if (fetchOptions.body && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json')
+  }
+
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`)
+  }
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...fetchOptions,
+    headers,
   })
+  const text = await response.text()
+  let data = null
 
-  const data = await response.text()
+  if (text) {
+    try {
+      data = JSON.parse(text)
+    } catch {
+      data = { message: text }
+    }
+  }
 
   if (!response.ok) {
-    let message = data || `Registration failed (${response.status})`
-
-    try {
-      message = JSON.parse(data).message || message
-    } catch {
-      // Keep the original response if it isn't JSON.
+    if (authenticated && token && response.status === 401) {
+      clearAuthToken()
     }
 
-    throw new Error(message)
-  }
-
-  return data
-}
-
-export async function loginUser(credentials) {
-  const response = await fetch(`${API_BASE_URL}/users/login`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(credentials),
-  })
-
-  const text = await response.text()
-
-  let data
-
-  try {
-    data = text ? JSON.parse(text) : {}
-  } catch {
-    data = { message: text }
-  }
-
-  if (!response.ok) {
-    throw new Error(
-      data.message ||
-      data.error ||
-      `Login failed (${response.status})`
-    )
-  }
-
-  return data
-}
-
-
-export async function discoverSkills() {
-  const token = localStorage.getItem('skillswap_token')
-
-  if (!token) {
-    throw new Error('Your login session was not found. Please log in again.')
-  }
-
-  const response = await fetch(`${API_BASE_URL}/skills/discover`, {
-    method: 'GET',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: 'application/json',
-    },
-  })
-
-  const text = await response.text()
-
-  let data
-
-  try {
-    data = text ? JSON.parse(text) : []
-  } catch {
-    data = null
-  }
-
-  if (!response.ok) {
     throw new Error(
       data?.message ||
-      data?.error ||
-      `Unable to fetch skills. HTTP ${response.status}`
+        data?.error ||
+        `Request failed (${response.status})`
     )
   }
+
+  return data
+}
+
+export function registerUser(userData) {
+  return apiRequest('/users/register', {
+    method: 'POST',
+    authenticated: false,
+    body: JSON.stringify(userData),
+  })
+}
+
+export function loginUser(credentials) {
+  return apiRequest('/users/login', {
+    method: 'POST',
+    authenticated: false,
+    body: JSON.stringify(credentials),
+  })
+}
+
+export function getCurrentUser() {
+  return apiRequest('/users/me')
+}
+
+export function requestPasswordReset(email) {
+  return apiRequest('/users/forgot-password', {
+    method: 'POST',
+    authenticated: false,
+    body: JSON.stringify({ email }),
+  })
+}
+
+export function verifyPasswordResetOtp(email, otp) {
+  return apiRequest('/users/verify-reset-otp', {
+    method: 'POST',
+    authenticated: false,
+    body: JSON.stringify({ email, otp }),
+  })
+}
+
+export function resetPassword(resetToken, newPassword) {
+  return apiRequest('/users/reset-password', {
+    method: 'POST',
+    authenticated: false,
+    body: JSON.stringify({ resetToken, newPassword }),
+  })
+}
+
+export async function getMySkills() {
+  const skills = await apiRequest('/skills/my-skills')
+
+  if (!Array.isArray(skills)) {
+    throw new Error('The skills API did not return a list of your skills.')
+  }
+
+  return skills
+}
+
+export function createSkill(skill) {
+  return apiRequest('/skills', {
+    method: 'POST',
+    body: JSON.stringify(skill),
+  })
+}
+
+export function updateSkill(skillId, skill) {
+  return apiRequest(`/skills/${skillId}`, {
+    method: 'PUT',
+    body: JSON.stringify(skill),
+  })
+}
+
+export function deleteSkill(skillId) {
+  return apiRequest(`/skills/${skillId}`, {
+    method: 'DELETE',
+  })
+}
+
+export async function discoverSkills() {
+  const data = await apiRequest('/skills/discover')
 
   if (!Array.isArray(data)) {
     throw new Error('The skills API did not return a list of skills.')
@@ -98,4 +142,47 @@ export async function discoverSkills() {
   return data
 }
 
+export async function getReciprocalMatches() {
+  const data = await apiRequest('/skills/matches')
+
+  if (!Array.isArray(data)) {
+    throw new Error('The matches API did not return a list of matches.')
+  }
+
+  return data
+}
+
+export async function sendExchangeRequest({
+  skillId,
+  learnerSkillId,
+  message = '',
+}) {
+  return apiRequest('/skill-requests', {
+    method: 'POST',
+    body: JSON.stringify({ skillId, learnerSkillId, message }),
+  })
+}
+
+export async function getReceivedExchangeRequests() {
+  const data = await apiRequest('/skill-requests/received')
+  if (!Array.isArray(data)) {
+    throw new Error('The received requests API did not return a list.')
+  }
+  return data
+}
+
+export async function getSentExchangeRequests() {
+  const data = await apiRequest('/skill-requests/sent')
+  if (!Array.isArray(data)) {
+    throw new Error('The sent requests API did not return a list.')
+  }
+  return data
+}
+
+export function respondToExchangeRequest(requestId, status) {
+  return apiRequest(`/skill-requests/${requestId}/respond`, {
+    method: 'PUT',
+    body: JSON.stringify({ status }),
+  })
+}
 

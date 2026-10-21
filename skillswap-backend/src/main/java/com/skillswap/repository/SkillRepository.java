@@ -16,17 +16,19 @@ public interface SkillRepository extends JpaRepository<Skill, Long> {
 
     Optional<Skill> findByIdAndUserId(Long skillId, Long userId);
 
+
     @Query("""
-            SELECT s FROM Skill s
-            JOIN FETCH s.user u
-            WHERE s.type = :type
-            AND u.id <> :userId
-            AND u.role <> :role
-            ORDER BY s.name ASC
-            """)
+        SELECT s FROM Skill s
+        JOIN FETCH s.user u
+        WHERE (:type IS NULL OR s.type = :type)
+        AND u.id <> :userId
+        AND u.role <> :role
+        ORDER BY s.name ASC
+        """)
     List<Skill> findDiscoverableSkills(
             @Param("type") SkillType type,
             @Param("userId") Long userId,
             @Param("role") Role role
     );
+
 }
