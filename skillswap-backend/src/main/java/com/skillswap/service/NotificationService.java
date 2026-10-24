@@ -9,6 +9,7 @@ import com.skillswap.repository.UserRepository;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
@@ -72,6 +73,18 @@ public class NotificationService {
         notification.setRead(true);
 
         notificationRepository.save(notification);
+    }
+
+    @Transactional
+    public void markAllAsRead(Authentication authentication) {
+        User user = userRepository.findByEmail(authentication.getName())
+                .orElseThrow(() ->
+                        new RuntimeException("User not found"));
+        List<Notification> unreadNotifications =
+                notificationRepository.findByUserIdAndReadFalse(user.getId());
+        unreadNotifications.forEach(
+                notification -> notification.setRead(true));
+        notificationRepository.saveAll(unreadNotifications);
     }
 
     public void createNotification(

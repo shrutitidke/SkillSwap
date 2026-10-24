@@ -2,11 +2,13 @@ package com.skillswap.service;
 
 import com.skillswap.dto.PublicReviewDTO;
 import com.skillswap.dto.PublicUserProfileDTO;
+import com.skillswap.dto.RequiredCourseReviewDTO;
 import com.skillswap.dto.SessionReviewCreateDTO;
 import com.skillswap.dto.SessionReviewResponseDTO;
 import com.skillswap.entity.ClassSession;
 import com.skillswap.entity.SessionReview;
 import com.skillswap.entity.User;
+import com.skillswap.enums.RequestStatus;
 import com.skillswap.enums.Role;
 import com.skillswap.enums.SessionStatus;
 import com.skillswap.repository.ClassSessionRepository;
@@ -20,7 +22,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class SessionReviewService {
@@ -63,6 +68,18 @@ public class SessionReviewService {
                     "You have already reviewed this session");
         }
 
+        if (session.getSkillExchangeRequest().getLearner().getId()
+                .equals(reviewer.getId())) {
+            List<RequiredCourseReviewDTO> requiredReviews =
+                    getRequiredCourseReviews(reviewer, LocalDateTime.now());
+            if (requiredReviews.stream().noneMatch(required ->
+                    required.sessionId().equals(sessionId))) {
+                throw new ResponseStatusException(
+                        HttpStatus.CONFLICT,
+                        "The course rating is available after 10 days and the latest confirmed session ends");
+            }
+        }
+
         SessionReview review = new SessionReview();
         review.setSession(session);
         review.setReviewer(reviewer);
@@ -78,6 +95,13 @@ public class SessionReviewService {
                     "You have already reviewed this session",
                     exception);
         }
+    }
+
+    @Transactional(readOnly = true)
+    public List<RequiredCourseReviewDTO> getRequiredCourseReviews(
+            Authentication authentication) {
+        User learner = requireUser(authentication);
+        return getRequiredCourseReviews(learner, LocalDateTime.now());
     }
 
     @Transactional(readOnly = true)
@@ -156,6 +180,55 @@ public class SessionReviewService {
             return request.getTeacher();
         }
         return request.getLearner();
+    }
+
+    private List<RequiredCourseReviewDTO> getRequiredCourseReviews(
+            User learner,
+            LocalDateTime now) {
+        Map<Long, ClassSession> latestConfirmedSessions =
+                new LinkedHashMap<>();
+
+        for (ClassSession session :
+                sessionRepository
+                        .findBySkillExchangeRequestTeacherIdOrSkillExchangeRequestLearnerIdOrderByScheduledAtAsc(
+                                learner.getId(), learner.getId())) {
+            var request = session.getSkillExchangeRequest();
+            if (!request.getLearner().getId().equals(learner.getId())
+                    || request.getStatus() != RequestStatus.ACCEPTED
+                    || request.getUpdatedAt() == null
+                    || request.getUpdatedAt().plusDays(10).isAfter(now)
+                    || session.getStatus() != SessionStatus.CONFIRMED) {
+                continue;
+            }
+
+            ClassSession current = latestConfirmedSessions.get(request.getId());
+            if (current == null
+                    || Comparator.comparing(ClassSession::getScheduledAt)
+                            .thenComparing(ClassSession::getId)
+                            .compare(session, current) > 0) {
+                latestConfirmedSessions.put(request.getId(), session);
+            }
+        }
+
+        return latestConfirmedSessions.values().stream()
+                .filter(session -> !session.getScheduledAt()
+                        .plusMinutes(session.getDurationMinutes())
+                        .isAfter(now))
+                .filter(session -> !reviewRepository.existsByRequestAndReviewer(
+                        session.getSkillExchangeRequest().getId(),
+                        learner.getId()))
+                .map(session -> {
+                    var request = session.getSkillExchangeRequest();
+                    return new RequiredCourseReviewDTO(
+                            session.getId(),
+                            request.getId(),
+                            request.getTeacher().getId(),
+                            request.getTeacher().getName(),
+                            request.getSkill().getName(),
+                            session.getScheduledAt(),
+                            session.getDurationMinutes());
+                })
+                .toList();
     }
 
     private String normalizeComment(String comment) {

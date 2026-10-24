@@ -15,4 +15,6 @@ public interface ExchangeChatMessageRepository
     findBySkillExchangeRequestIdAndIdGreaterThanOrderByIdAsc(
             Long requestId,
             Long afterId);
+
+    void deleteBySkillExchangeRequestIdIn(List<Long> requestIds);
 }

@@ -1,5 +1,7 @@
 
 import { Link } from 'react-router-dom'
+import useAuth from '../auth/useAuth'
+import AdminHome from './AdminHome'
 
 const featuredSkills = [
   {
@@ -43,6 +45,12 @@ const steps = [
 ]
 
 function Home() {
+  const { user } = useAuth()
+
+  if (user?.role === 'ADMIN') {
+    return <AdminHome />
+  }
+
   return (
     <div className="home-page">
       <section className="hero" id="home">

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
+  discoverSkills,
   getReciprocalMatches,
   getReceivedExchangeRequests,
   getSentExchangeRequests,
@@ -9,6 +10,7 @@ import {
 
 function ExploreSkills() {
   const [matches, setMatches] = useState([])
+  const [communitySkills, setCommunitySkills] = useState([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [requestsLoading, setRequestsLoading] = useState(true)
@@ -27,19 +29,21 @@ function ExploreSkills() {
         setLoading(true)
         setError('')
 
-        const [data, received, sent] = await Promise.all([
+        const [data, skills, received, sent] = await Promise.all([
           getReciprocalMatches(),
+          discoverSkills(),
           getReceivedExchangeRequests(),
           getSentExchangeRequests(),
         ])
 
         if (!cancelled) {
           setMatches(data)
+          setCommunitySkills(skills)
           setExistingRequests([...received, ...sent])
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err.message || 'Unable to load reciprocal matches.')
+          setError(err.message || 'Unable to load skills and matches.')
         }
       } finally {
         if (!cancelled) {
@@ -65,6 +69,11 @@ function ExploreSkills() {
       match.skillYouTeach,
       match.skillYouTeachDescription,
     ].some((value) => value?.toLowerCase().includes(searchText))
+  )
+  const filteredCommunitySkills = communitySkills.filter((skill) =>
+    [skill.name, skill.description, skill.userName].some((value) =>
+      value?.toLowerCase().includes(searchText)
+    )
   )
 
   const handleSendRequest = async (match) => {
@@ -108,8 +117,8 @@ function ExploreSkills() {
         </h1>
 
         <p>
-          Find people whose skills they want to learn match the skills you can
-          teach, and who can teach something you want to learn.
+          Browse skills registered members can teach, then find people whose
+          interests also make a reciprocal skill exchange.
         </p>
       </div>
 
@@ -117,7 +126,7 @@ function ExploreSkills() {
         <input
           type="search"
           placeholder="Search by member, skill, or description..."
-          aria-label="Search reciprocal matches"
+          aria-label="Search member skills and reciprocal matches"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />
@@ -134,6 +143,61 @@ function ExploreSkills() {
             {requestError}
           </p>
         )}
+        <section aria-labelledby="community-skills-heading">
+          <div className="results-heading">
+            <h2 id="community-skills-heading">Skills members can teach</h2>
+            <p>
+              {loading
+                ? 'Loading member skills...'
+                : `${filteredCommunitySkills.length} skills found`}
+            </p>
+          </div>
+          {loading ? (
+            <div className="explore-empty">
+              <p>Loading skills shared by registered members...</p>
+            </div>
+          ) : error ? (
+            <div className="explore-empty">
+              <p>{error}</p>
+            </div>
+          ) : filteredCommunitySkills.length ? (
+            <div className="skills-grid">
+              {filteredCommunitySkills.map((skill) => (
+                <article className="skill-card" key={skill.id}>
+                  <div className="skill-card-top">
+                    <div className="skill-icon" aria-hidden="true">✦</div>
+                    <span className="skill-level">Can teach</span>
+                  </div>
+                  <p className="skill-category">SKILLSWAP MEMBER</p>
+                  <h3>{skill.name}</h3>
+                  <p className="skill-description">
+                    {skill.description || 'No description provided.'}
+                  </p>
+                  <Link
+                    className="community-skill-member"
+                    to={`/users/${skill.userId}/profile`}
+                  >
+                    Shared by {skill.userName}
+                  </Link>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="explore-empty">
+              <h2>
+                {communitySkills.length
+                  ? 'No skills found'
+                  : 'No member skills available yet'}
+              </h2>
+              <p>
+                {communitySkills.length
+                  ? 'Try searching for another skill or member.'
+                  : 'Skills that registered members add as skills they can teach will appear here.'}
+              </p>
+            </div>
+          )}
+        </section>
+
         <div className="results-heading">
           <h2>Your Reciprocal Matches</h2>
           <p>

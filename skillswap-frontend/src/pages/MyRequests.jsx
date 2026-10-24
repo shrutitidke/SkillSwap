@@ -225,6 +225,7 @@ function SessionPanel({
             const isFutureSession =
               Number.isFinite(sessionStartTime) && sessionStartTime > currentTime
             const canReview =
+              String(session.learnerId) !== String(currentUserId) &&
               session.status === 'CONFIRMED' &&
               Number.isFinite(sessionEndTime) &&
               sessionEndTime <= currentTime
@@ -233,7 +234,9 @@ function SessionPanel({
               : null
             const canOpenMeetingUrl =
               safeMeetingUrl &&
-              ['PROPOSED', 'CONFIRMED'].includes(session.status)
+              ['PROPOSED', 'CONFIRMED'].includes(session.status) &&
+              Number.isFinite(sessionEndTime) &&
+              sessionEndTime > currentTime
             return (
               <article className="request-session" key={session.id}>
                 <div className="request-session-heading">
@@ -263,7 +266,10 @@ function SessionPanel({
                         {session.meetingLink}
                       </a>
                     ) : safeMeetingUrl ? (
-                      <span>{session.meetingLink}</span>
+                      <span>
+                        {session.meetingLink}
+                        {sessionEndTime <= currentTime && ' (session ended)'}
+                      </span>
                     ) : (
                       <span>{session.meetingLink} (not a valid web link)</span>
                     )}
@@ -291,22 +297,12 @@ function SessionPanel({
                       </button>
                     </>
                   )}
-                  {canCancel && (
+                  {canCancel && isFutureSession && (
                     <button
                       type="button"
                       className="secondary-btn"
                       onClick={() => onCancel(session.id)}
-                      disabled={actionId !== null || !isFutureSession}
-                      title={
-                        isFutureSession
-                          ? undefined
-                          : 'Sessions cannot be cancelled at or after their scheduled start time.'
-                      }
-                      aria-label={
-                        isFutureSession
-                          ? 'Cancel session'
-                          : 'Cancellation unavailable after the scheduled start time'
-                      }
+                      disabled={actionId !== null}
                     >
                       {isBusy ? 'Cancelling...' : 'Cancel session'}
                     </button>

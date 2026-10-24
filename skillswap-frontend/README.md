@@ -1,16 +1,41 @@
-# React + Vite
+# SkillSwap Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+The SkillSwap frontend is a React application built with Vite.
 
-Currently, two official plugins are available:
+## Run locally
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```bash
+npm install
+npm run dev
+```
 
-## React Compiler
+The development server runs at `http://localhost:5173`. The backend API
+defaults to `http://localhost:8080/api`; set `VITE_API_BASE_URL` if the API is
+hosted elsewhere.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Main user features
 
-## Expanding the ESLint configuration
+- Registration, login, JWT-authenticated routes, and logout.
+- Home, dashboard, member skill discovery, reciprocal matches, and skill
+  exchange requests.
+- Class session proposals, confirmations, cancellation before the scheduled
+  start, and meeting links available only until the session ends.
+- Notifications with an unread count. Opening Notifications marks unread
+  messages as read.
+- Course ratings: after an accepted exchange reaches 10 days and its latest
+  confirmed session has ended, the learner must rate the teacher before
+  accessing other app features.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Admin features
+
+Administrators have a separate home page and member directory. The directory
+shows registered members and their TEACH/LEARN skills, supports search, and
+allows administrators to delete regular user accounts. Admins can also send
+warnings or instructions to an individual member or all regular members.
+
+## Checks
+
+```bash
+npm run lint
+npm run build
+```

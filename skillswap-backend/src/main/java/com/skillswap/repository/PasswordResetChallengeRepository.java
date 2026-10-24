@@ -20,4 +20,6 @@ public interface PasswordResetChallengeRepository
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<PasswordResetChallenge> findByResetAuthorizationSelector(
             String selector);
+
+    void deleteByUserId(Long userId);
 }

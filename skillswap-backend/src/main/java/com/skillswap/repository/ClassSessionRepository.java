@@ -14,4 +14,6 @@ public interface ClassSessionRepository
     List<ClassSession>
     findBySkillExchangeRequestTeacherIdOrSkillExchangeRequestLearnerIdOrderByScheduledAtAsc(
             Long teacherId, Long learnerId);
+
+    void deleteBySkillExchangeRequestIdIn(List<Long> requestIds);
 }

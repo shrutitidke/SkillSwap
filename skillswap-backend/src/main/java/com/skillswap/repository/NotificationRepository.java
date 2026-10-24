@@ -18,4 +18,8 @@ public interface NotificationRepository
             Long notificationId,
             Long userId
     );
+
+    List<Notification> findByUserIdAndReadFalse(Long userId);
+
+    void deleteByUserId(Long userId);
 }

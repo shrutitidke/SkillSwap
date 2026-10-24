@@ -2,6 +2,7 @@ const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
 const TOKEN_KEY = 'skillswap_token'
 export const AUTH_CHANGE_EVENT = 'skillswap-auth-change'
+export const NOTIFICATIONS_CHANGE_EVENT = 'skillswap-notifications-change'
 
 export function setAuthToken(token) {
   localStorage.setItem(TOKEN_KEY, token)
@@ -234,10 +235,71 @@ export function cancelClassSession(sessionId) {
   })
 }
 
+export async function getAdminUsers() {
+  const data = await apiRequest('/admin/users')
+  if (!Array.isArray(data)) {
+    throw new Error('The admin users API did not return a list.')
+  }
+  return data
+}
+
+export function deleteAdminUser(userId) {
+  return apiRequest(`/admin/users/${userId}`, {
+    method: 'DELETE',
+  })
+}
+
+export function sendAdminMessage(message) {
+  return apiRequest('/admin/messages', {
+    method: 'POST',
+    body: JSON.stringify(message),
+  })
+}
+
+export async function getMyNotifications() {
+  const data = await apiRequest('/notifications')
+  if (!Array.isArray(data)) {
+    throw new Error('The notifications API did not return a list.')
+  }
+  return data
+}
+
+export async function getMyUnreadNotifications() {
+  const data = await apiRequest('/notifications/unread')
+  if (!Array.isArray(data)) {
+    throw new Error('The unread notifications API did not return a list.')
+  }
+  return data
+}
+
+export async function markAllNotificationsRead() {
+  await apiRequest('/notifications/read', {
+    method: 'PUT',
+  })
+  window.dispatchEvent(new Event(NOTIFICATIONS_CHANGE_EVENT))
+}
+
+export function markNotificationRead(notificationId) {
+  return apiRequest(`/notifications/${notificationId}/read`, {
+    method: 'PUT',
+  }).then((response) => {
+    window.dispatchEvent(new Event(NOTIFICATIONS_CHANGE_EVENT))
+    return response
+  })
+}
+
 export async function getSessionReviews(sessionId) {
   const data = await apiRequest(`/class-sessions/${sessionId}/reviews`)
   if (!Array.isArray(data)) {
     throw new Error('The session reviews API did not return a list.')
+  }
+  return data
+}
+
+export async function getRequiredCourseReviews() {
+  const data = await apiRequest('/class-sessions/reviews/required')
+  if (!Array.isArray(data)) {
+    throw new Error('The required course reviews API did not return a list.')
   }
   return data
 }

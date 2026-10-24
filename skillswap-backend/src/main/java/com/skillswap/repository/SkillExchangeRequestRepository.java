@@ -17,6 +17,10 @@ public interface SkillExchangeRequestRepository
     List<SkillExchangeRequest> findByTeacherIdOrderByCreatedAtDesc(
             Long teacherId);
 
+    List<SkillExchangeRequest> findByLearnerIdOrTeacherId(
+            Long learnerId,
+            Long teacherId);
+
     @Query("""
             select case when count(request) > 0 then true else false end
             from SkillExchangeRequest request

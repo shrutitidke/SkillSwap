@@ -1,11 +1,10 @@
 
 import { useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { loginUser, setAuthToken } from '../services/api'
 
 function Login() {
   const navigate = useNavigate()
-  const location = useLocation()
 
   const [showPassword, setShowPassword] = useState(false)
   const [email, setEmail] = useState('')
@@ -63,9 +62,7 @@ function Login() {
     })
 
     if (loginSuccessful) {
-      navigate(location.state?.from?.pathname || '/skills', {
-        replace: true,
-      })
+      navigate('/', { replace: true })
     }
   }
 
